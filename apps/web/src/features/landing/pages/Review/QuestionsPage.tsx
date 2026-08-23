@@ -24,7 +24,11 @@ export function QuestionsPage() {
 
   const isCorrect = answerIndex === question.correctAnswer;
 
-  registerQuestionResult(isCorrect);
+    registerQuestionResult(
+    question.id,
+    question.subject,
+    isCorrect,
+  );
 
   if (isCorrect) {
     setCorrectAnswers((current) => current + 1);
@@ -32,6 +36,7 @@ export function QuestionsPage() {
     setWrongAnswers((current) => current + 1);
   }
 };
+
   const handleNext = () => {
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1);

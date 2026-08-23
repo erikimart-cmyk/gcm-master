@@ -1,4 +1,5 @@
 import { MainLayout } from "@/layouts/MainLayout";
+import { Link } from "react-router-dom";
 
 export function ReviewPage() {
   return (
@@ -29,12 +30,12 @@ export function ReviewPage() {
             com uma revisão direcionada.
           </p>
 
-          <button
-            type="button"
-            className="mt-8 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-500"
+         <Link
+            to="/revisao/questoes"
+            className="mt-8 inline-flex rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-500"
           >
-            Iniciar revisão
-          </button>
+           Iniciar revisão
+         </Link>
         </div>
       </section>
     </MainLayout>

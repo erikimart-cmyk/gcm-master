@@ -6,17 +6,22 @@ import {
   type ReactNode,
 } from "react";
 
+import type { QuestionResult } from "@/features/questions/types/QuestionResult";
+
 type StudyProgress = {
   questionsAnswered: number;
   correctAnswers: number;
   wrongAnswers: number;
   studySessions: number;
+  results: QuestionResult[];
 };
 
 type StudyProgressContextValue = {
   progress: StudyProgress;
 
   registerQuestionResult: (
+    questionId: number,
+    subject: string,
     correct: boolean,
   ) => void;
 
@@ -40,22 +45,39 @@ export function StudyProgressProvider({
     correctAnswers: 0,
     wrongAnswers: 0,
     studySessions: 0,
+    results: [],
   });
 
-  const registerQuestionResult = (correct: boolean) => {
-  setProgress((current) => ({
-    ...current,
+  const registerQuestionResult = (
+    questionId: number,
+    subject: string,
+    correct: boolean,
+  ) => {
+    const result: QuestionResult = {
+      questionId,
+      subject,
+      correct,
+      answeredAt: new Date().toISOString(),
+    };
 
-    questionsAnswered:
-      current.questionsAnswered + 1,
+    setProgress((current) => ({
+      ...current,
 
-    correctAnswers:
-      current.correctAnswers + (correct ? 1 : 0),
+      questionsAnswered:
+        current.questionsAnswered + 1,
 
-    wrongAnswers:
-      current.wrongAnswers + (correct ? 0 : 1),
-  }));
-};
+      correctAnswers:
+        current.correctAnswers + (correct ? 1 : 0),
+
+      wrongAnswers:
+        current.wrongAnswers + (correct ? 0 : 1),
+
+      results: [
+        ...current.results,
+        result,
+      ],
+    }));
+  };
 
   const registerReviewResult = (
     questions: number,
@@ -63,6 +85,8 @@ export function StudyProgressProvider({
     wrong: number,
   ) => {
     setProgress((current) => ({
+      ...current,
+
       questionsAnswered:
         current.questionsAnswered + questions,
 
@@ -77,14 +101,14 @@ export function StudyProgressProvider({
     }));
   };
 
-const value = useMemo(
-  () => ({
-    progress,
-    registerQuestionResult,
-    registerReviewResult,
-  }),
-  [progress],
-);
+  const value = useMemo(
+    () => ({
+      progress,
+      registerQuestionResult,
+      registerReviewResult,
+    }),
+    [progress],
+  );
 
   return (
     <StudyProgressContext.Provider value={value}>
