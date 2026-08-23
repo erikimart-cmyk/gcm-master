@@ -14,7 +14,7 @@ export type Question = {
   country: string;
   language: string;
 
-  bank: string;
+  bankId: string;
   exam: string;
   position?: string;
   year?: number;

@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { useStudyProgress } from "@/features/landing/context/StudyProgressContext";
 import { questions } from "@/features/landing/data/questions";
+import { examBanks } from "@/features/questions/data/banks";
 
 export function QuestionsPage() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -13,6 +14,9 @@ export function QuestionsPage() {
   const { registerQuestionResult } = useStudyProgress();
 
   const question = questions[currentQuestion];
+  const bank = examBanks.find(
+  (item) => item.id === question.bankId,
+);
 
   const handleAnswer = (answerId: string) => {
     if (selectedAnswer !== null) {
@@ -85,7 +89,7 @@ export function QuestionsPage() {
 
           <div className="mb-6 flex flex-wrap gap-2">
             <span className="rounded-full bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-400">
-              {question.bank}
+              {bank?.name ?? question.bankId}
             </span>
 
             <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-400">
