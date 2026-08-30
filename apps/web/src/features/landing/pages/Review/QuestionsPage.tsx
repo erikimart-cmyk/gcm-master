@@ -1,24 +1,61 @@
 import { useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { useStudyProgress } from "@/features/landing/context/StudyProgressContext";
 import { questions } from "@/features/landing/data/questions";
 import { examBanks } from "@/features/questions/data/banks";
 
 export function QuestionsPage() {
+
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+
+  const reviewMode =
+    searchParams.get("mode") === "errors";
+
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
 
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [wrongAnswers, setWrongAnswers] = useState(0);
 
-  const { registerQuestionResult } = useStudyProgress();
+  const {
+  registerQuestionResult,
+  reviewQuestions,
+} = useStudyProgress();
 
-  const question = questions[currentQuestion];
+  const activeQuestions = reviewMode
+  ? reviewQuestions
+  : questions;
+
+const question = activeQuestions[currentQuestion];
+if (!question) {
+  return (
+    <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
+      <div className="mx-auto max-w-3xl">
+        <div className="rounded-3xl border border-slate-800 bg-slate-900 p-8 text-center">
+          <p className="text-sm font-semibold uppercase tracking-wide text-blue-400">
+            Revisão inteligente
+          </p>
+
+          <h1 className="mt-3 text-3xl font-bold">
+            Nenhum erro para revisar
+          </h1>
+
+          <p className="mt-4 text-slate-400">
+            Você não possui questões erradas disponíveis
+            para esta revisão.
+          </p>
+        </div>
+      </div>
+    </main>
+  );
+}
   const bank = examBanks.find(
   (item) => item.id === question.bankId,
 );
 
-  const handleAnswer = (answerId: string) => {
+   const handleAnswer = (answerId: string) => {
     if (selectedAnswer !== null) {
       return;
     }
@@ -32,6 +69,7 @@ export function QuestionsPage() {
       question.id,
       question.subject,
       isCorrect,
+      reviewMode,
     );
 
     if (isCorrect) {
@@ -42,7 +80,7 @@ export function QuestionsPage() {
   };
 
   const handleNext = () => {
-    if (currentQuestion < questions.length - 1) {
+    if (currentQuestion < activeQuestions.length - 1) {
       setCurrentQuestion((current) => current + 1);
       setSelectedAnswer(null);
     }
@@ -72,7 +110,7 @@ export function QuestionsPage() {
           </div>
 
           <span className="rounded-full bg-slate-800 px-4 py-2 text-sm text-slate-300">
-            Questão {currentQuestion + 1} de {questions.length}
+            Questão {currentQuestion + 1} de {activeQuestions.length}
           </span>
         </div>
 
@@ -80,7 +118,7 @@ export function QuestionsPage() {
           <div
             className="h-full rounded-full bg-blue-500 transition-all"
             style={{
-              width: `${((currentQuestion + 1) / questions.length) * 100}%`,
+              width: `${((currentQuestion + 1) / activeQuestions.length) * 100}%`,
             }}
           />
         </div>
@@ -167,7 +205,7 @@ export function QuestionsPage() {
                 {question.explanation}
               </p>
 
-              {currentQuestion < questions.length - 1 && (
+              {currentQuestion < activeQuestions.length - 1 && (
                 <button
                   type="button"
                   onClick={handleNext}
@@ -177,7 +215,7 @@ export function QuestionsPage() {
                 </button>
               )}
 
-              {currentQuestion === questions.length - 1 && (
+              {currentQuestion === activeQuestions.length - 1 && (
                 <div className="mt-6 rounded-2xl border border-blue-500/20 bg-blue-500/10 p-5">
 
                   <p className="text-xl font-bold text-blue-400">
@@ -192,7 +230,7 @@ export function QuestionsPage() {
                       </p>
 
                       <p className="mt-1 text-2xl font-bold">
-                        {questions.length}
+                        {activeQuestions.length}
                       </p>
                     </div>
 
@@ -213,7 +251,7 @@ export function QuestionsPage() {
 
                       <p className="mt-1 text-2xl font-bold text-blue-400">
                         {Math.round(
-                          (correctAnswers / questions.length) * 100,
+                          (correctAnswers / activeQuestions.length) * 100,
                         )}%
                       </p>
                     </div>
@@ -223,7 +261,23 @@ export function QuestionsPage() {
                   <p className="mt-5 text-sm text-slate-400">
                     Erros: {wrongAnswers}
                   </p>
+                  <div className="mt-6 flex flex-wrap gap-3">
+                 <button
+                 type="button"
+                 onClick={() => navigate("/revisao")}
+                 className="inline-flex rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-500"
+                >
+                ← Voltar para revisão
+                </button>
 
+                <button
+                type="button"
+                onClick={() => navigate("/revisao/questoes")}
+                className="inline-flex rounded-xl border border-slate-600 bg-slate-800 px-6 py-3 font-semibold text-slate-200 transition hover:border-blue-500 hover:text-white"
+                >
+                Refazer questões
+                </button>
+               </div>
                 </div>
               )}
 
