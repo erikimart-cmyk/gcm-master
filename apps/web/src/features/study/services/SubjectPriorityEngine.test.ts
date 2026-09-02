@@ -98,20 +98,40 @@ describe("SubjectPriorityEngine", () => {
       },
     ];
 
-    const originalOrder = performances.map(
-      (item) => item.subject,
-    );
+    const originalOrder = performances.map((item) => item.subject);
 
     prioritizeSubjects(performances);
 
-    expect(
-      performances.map((item) => item.subject),
-    ).toEqual(originalOrder);
+    expect(performances.map((item) => item.subject)).toEqual(originalOrder);
   });
 
   it("deve retornar uma lista vazia quando não houver disciplinas", () => {
     const result = prioritizeSubjects([]);
 
     expect(result).toEqual([]);
+  });
+  it("não deve priorizar disciplinas sem erros pendentes", () => {
+    const performances: SubjectPerformance[] = [
+      {
+        subject: "Direito Constitucional",
+        questionsAnswered: 2,
+        correctAnswers: 2,
+        wrongAnswers: 0,
+        accuracy: 100,
+        priority: "low",
+      },
+      {
+        subject: "Português",
+        questionsAnswered: 2,
+        correctAnswers: 1,
+        wrongAnswers: 1,
+        accuracy: 50,
+        priority: "high",
+      },
+    ];
+
+    const result = prioritizeSubjects(performances);
+
+    expect(result.map((item) => item.subject)).toEqual(["Português"]);
   });
 });
