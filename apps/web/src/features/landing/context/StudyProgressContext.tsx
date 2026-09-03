@@ -1,6 +1,7 @@
 ﻿import { calculateSubjectPerformance } from "@/features/study/services/SubjectPerformanceCalculator";
 import { prioritizeSubjects } from "@/features/study/services/SubjectPriorityEngine";
 import type { SubjectPerformance } from "@/features/study/types/SubjectPerformance";
+import type { StudyGoal } from "@/features/study/types/StudyGoal";
 
 import {
   createContext,
@@ -24,6 +25,10 @@ type StudyProgress = {
 };
 
 type StudyProgressContextValue = {
+  studyGoal: StudyGoal | null;
+
+  setStudyGoal: (goal: StudyGoal) => void;
+
   reviewQuestions: Question[];
 
   progress: StudyProgress;
@@ -54,6 +59,8 @@ export function StudyProgressProvider({
 }: {
   children: ReactNode;
 }) {
+  const [studyGoal, setStudyGoal] = useState<StudyGoal | null>(null);
+
   const [progress, setProgress] = useState<StudyProgress>({
     questionsAnswered: 0,
     correctAnswers: 0,
@@ -154,6 +161,10 @@ export function StudyProgressProvider({
 
   const value = useMemo(
     () => ({
+      studyGoal,
+
+      setStudyGoal,
+
       progress,
 
       subjectPerformance,
@@ -167,6 +178,7 @@ export function StudyProgressProvider({
       registerReviewResult,
     }),
     [
+      studyGoal,
       progress,
       subjectPerformance,
       prioritizedSubjects,

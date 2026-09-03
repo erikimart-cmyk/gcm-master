@@ -1,41 +1,18 @@
-import { useState } from "react";
+import { useStudyProgress } from "@/features/landing/context/StudyProgressContext";
+import { studyGoals } from "@/features/study/types/StudyGoal";
 import { GoalCard } from "./GoalCard";
 
-const goals = [
-  {
-    icon: "🎯",
-    title: "Concursos",
-    description: "Prepare-se para conquistar sua aprovação.",
-  },
-  {
-    icon: "🌍",
-    title: "Idiomas",
-    description: "Aprenda um novo idioma no seu ritmo.",
-  },
-  {
-    icon: "💻",
-    title: "Tecnologia",
-    description: "Desenvolva habilidades para o mercado digital.",
-  },
-  {
-    icon: "📚",
-    title: "Novas Habilidades",
-    description: "Aprenda qualquer competência que desejar.",
-  },
-  {
-    icon: "📈",
-    title: "Carreira",
-    description: "Impulsione sua evolução profissional.",
-  },
-  {
-    icon: "✨",
-    title: "Explorar",
-    description: "Descubra novas possibilidades de aprendizado.",
-  },
-];
+const goalIcons: Record<(typeof studyGoals)[number]["id"], string> = {
+  concursos: "🎯",
+  idiomas: "🌍",
+  tecnologia: "💻",
+  "novas-habilidades": "📚",
+  carreira: "📈",
+  explorar: "✨",
+};
 
 export function GoalGrid() {
-  const [selected, setSelected] = useState<string | null>(null);
+  const { studyGoal, setStudyGoal } = useStudyProgress();
 
   return (
     <section className="mt-16">
@@ -45,12 +22,13 @@ export function GoalGrid() {
       </h2>
 
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-        {goals.map((goal) => (
+        {studyGoals.map((goal) => (
           <GoalCard
-            key={goal.title}
+            key={goal.id}
             {...goal}
-            selected={selected === goal.title}
-            onClick={() => setSelected(goal.title)}
+            icon={goalIcons[goal.id]}
+            selected={studyGoal?.id === goal.id}
+            onClick={() => setStudyGoal(goal)}
           />
         ))}
       </div>
