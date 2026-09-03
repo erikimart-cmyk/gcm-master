@@ -1,6 +1,12 @@
+import { useNavigate } from "react-router-dom";
+
+import { useStudyProgress } from "@/features/landing/context/StudyProgressContext";
 import { GoalGrid } from "./GoalGrid";
 
 export function WelcomeHero() {
+  const navigate = useNavigate();
+  const { studyGoal } = useStudyProgress();
+
   return (
     <section className="mx-auto max-w-4xl text-center">
 
@@ -23,6 +29,13 @@ export function WelcomeHero() {
       </p>
 
       <button
+        type="button"
+        disabled={!studyGoal}
+        onClick={() => {
+          if (studyGoal) {
+            navigate("/dashboard");
+          }
+        }}
         className="
         mt-12
         rounded-xl
@@ -35,6 +48,10 @@ export function WelcomeHero() {
         hover:bg-violet-500
         hover:scale-105
         active:scale-95
+        disabled:cursor-not-allowed
+        disabled:bg-violet-900
+        disabled:text-zinc-400
+        disabled:hover:scale-100
         "
       >
         Começar Minha Jornada

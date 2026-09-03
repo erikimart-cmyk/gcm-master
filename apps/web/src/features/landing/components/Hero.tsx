@@ -1,7 +1,10 @@
 import { Button } from "@/shared/components/ui/Button";
+import { useNavigate } from "react-router-dom";
 import { DashboardPreview } from "./DashboardPreview";
 
 export function Hero() {
+  const navigate = useNavigate();
+
   const highlights = [
     "IA Personalizada",
     "Concursos Públicos",
@@ -55,7 +58,11 @@ export function Hero() {
 
 </section>
 
-            <Button variant="primary" size="lg">
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={() => navigate("/onboarding")}
+            >
               Começar gratuitamente
             </Button>
 

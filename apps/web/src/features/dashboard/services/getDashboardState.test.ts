@@ -10,6 +10,7 @@ describe("getDashboardState", () => {
     );
 
     expect(result.accuracy).toBeNull();
+    expect(result.attentionState).toBe("initial");
     expect(result.nextStep.state).toBe("initial");
     expect(result.nextStep.actionPath).toBe("/revisao/questoes");
   });
@@ -21,6 +22,7 @@ describe("getDashboardState", () => {
     );
 
     expect(result.accuracy).toBe(67);
+    expect(result.attentionState).toBe("up-to-date");
     expect(result.nextStep.state).toBe("up-to-date");
     expect(result.nextStep.actionPath).toBe("/revisao/questoes");
   });
@@ -32,6 +34,7 @@ describe("getDashboardState", () => {
     );
 
     expect(result.accuracy).toBe(25);
+    expect(result.attentionState).toBe("priority");
     expect(result.nextStep.state).toBe("review");
     expect(result.nextStep.actionPath).toBe("/revisao");
   });

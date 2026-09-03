@@ -14,5 +14,6 @@ export type NextStep = {
 
 export type DashboardState = {
   accuracy: number | null;
+  attentionState: "initial" | "up-to-date" | "priority";
   nextStep: NextStep;
 };

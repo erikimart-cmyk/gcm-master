@@ -10,6 +10,7 @@ export function getDashboardState(
   if (progress.questionsAnswered === 0) {
     return {
       accuracy: null,
+      attentionState: "initial",
       nextStep: {
         state: "initial",
         title: "Comece sua jornada",
@@ -28,6 +29,7 @@ export function getDashboardState(
   if (!hasPriorities) {
     return {
       accuracy,
+      attentionState: "up-to-date",
       nextStep: {
         state: "up-to-date",
         title: "Você está em dia! 🎉",
@@ -41,6 +43,7 @@ export function getDashboardState(
 
   return {
     accuracy,
+    attentionState: "priority",
     nextStep: {
       state: "review",
       title: "Reforce seu ponto de atenção",

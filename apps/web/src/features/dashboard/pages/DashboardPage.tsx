@@ -33,7 +33,10 @@ export function DashboardPage() {
 
           <div className="grid gap-8 lg:grid-cols-2">
             <SubjectPerformance subjects={subjectPerformance} />
-            <PriorityCard priority={topPriority} />
+            <PriorityCard
+              priority={topPriority}
+              state={dashboardState.attentionState}
+            />
           </div>
 
           <NextStepCard

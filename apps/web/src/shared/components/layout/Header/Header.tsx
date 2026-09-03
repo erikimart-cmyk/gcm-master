@@ -6,7 +6,7 @@ export function Header() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
         <Logo />
 
-        <nav>
+        <nav className="hidden sm:block">
           <ul className="flex gap-6 text-slate-300">
             <li>Início</li>
             <li>Recursos</li>
