@@ -5,6 +5,7 @@ import type { StudyGoal } from "@/features/study/types/StudyGoal";
 
 import {
   createContext,
+  useCallback,
   useContext,
   useMemo,
   useState,
@@ -51,14 +52,11 @@ type StudyProgressContextValue = {
   ) => void;
 };
 
-const StudyProgressContext =
-  createContext<StudyProgressContextValue | null>(null);
+const StudyProgressContext = createContext<StudyProgressContextValue | null>(
+  null,
+);
 
-export function StudyProgressProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function StudyProgressProvider({ children }: { children: ReactNode }) {
   const [studyGoal, setStudyGoal] = useState<StudyGoal | null>(null);
 
   const [progress, setProgress] = useState<StudyProgress>({
@@ -70,94 +68,73 @@ export function StudyProgressProvider({
   });
 
   const subjectPerformance = useMemo(
-    () =>
-      calculateSubjectPerformance(
-        progress.questionResults,
-      ),
+    () => calculateSubjectPerformance(progress.questionResults),
     [progress.questionResults],
   );
 
   const prioritizedSubjects = useMemo(
-    () =>
-      prioritizeSubjects(
-        subjectPerformance,
-      ),
+    () => prioritizeSubjects(subjectPerformance),
     [subjectPerformance],
   );
 
   const reviewQuestions = useMemo(
-    () =>
-      selectReviewQuestions(
-        questions,
-        progress.questionResults,
-      ),
+    () => selectReviewQuestions(questions, progress.questionResults),
     [progress.questionResults],
   );
 
-  const registerQuestionResult = (
-    questionId: number,
-    subject: string,
-    correct: boolean,
-    isReview = false,
-  ) => {
-    const previousAttempts =
-      progress.questionResults.filter(
+  const registerQuestionResult = useCallback(
+    (
+      questionId: number,
+      subject: string,
+      correct: boolean,
+      isReview = false,
+    ) => {
+      const previousAttempts = progress.questionResults.filter(
         (item) => item.questionId === questionId,
       ).length;
 
-    const attempt = previousAttempts + 1;
+      const attempt = previousAttempts + 1;
 
-    const result: QuestionResult = {
-      questionId,
-      subject,
-      correct,
-      answeredAt: new Date().toISOString(),
-      attempt,
-      isReview,
-    };
+      const result: QuestionResult = {
+        questionId,
+        subject,
+        correct,
+        answeredAt: new Date().toISOString(),
+        attempt,
+        isReview,
+      };
 
-    setProgress((current) => ({
-      ...current,
+      setProgress((current) => ({
+        ...current,
 
-      questionsAnswered:
-        current.questionsAnswered + 1,
+        questionsAnswered: current.questionsAnswered + 1,
 
-      correctAnswers:
-        current.correctAnswers +
-        (correct ? 1 : 0),
+        correctAnswers: current.correctAnswers + (correct ? 1 : 0),
 
-      wrongAnswers:
-        current.wrongAnswers +
-        (correct ? 0 : 1),
+        wrongAnswers: current.wrongAnswers + (correct ? 0 : 1),
 
-      questionResults: [
-        ...current.questionResults,
-        result,
-      ],
-    }));
-  };
+        questionResults: [...current.questionResults, result],
+      }));
+    },
+    [progress.questionResults],
+  );
 
-  const registerReviewResult = (
-    questions: number,
-    correct: number,
-    wrong: number,
-  ) => {
-    setProgress((current) => ({
-      ...current,
+  const registerReviewResult = useCallback(
+    (questions: number, correct: number, wrong: number) => {
+      setProgress((current) => ({
+        ...current,
 
-      questionsAnswered:
-        current.questionsAnswered + questions,
+        questionsAnswered: current.questionsAnswered + questions,
 
-      correctAnswers:
-        current.correctAnswers + correct,
+        correctAnswers: current.correctAnswers + correct,
 
-      wrongAnswers:
-        current.wrongAnswers + wrong,
+        wrongAnswers: current.wrongAnswers + wrong,
 
-      studySessions:
-        current.studySessions + 1,
-    }));
-  };
+        studySessions: current.studySessions + 1,
+      }));
+    },
+    [],
+  );
 
   const value = useMemo(
     () => ({
@@ -183,6 +160,8 @@ export function StudyProgressProvider({
       subjectPerformance,
       prioritizedSubjects,
       reviewQuestions,
+      registerQuestionResult,
+      registerReviewResult,
     ],
   );
 
@@ -193,10 +172,11 @@ export function StudyProgressProvider({
   );
 }
 
+// The hook is deliberately colocated with its provider as the public API of
+// this feature; it is not a component eligible for Fast Refresh.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useStudyProgress() {
-  const context = useContext(
-    StudyProgressContext,
-  );
+  const context = useContext(StudyProgressContext);
 
   if (!context) {
     throw new Error(

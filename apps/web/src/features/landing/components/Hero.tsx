@@ -61,7 +61,7 @@ export function Hero() {
             <Button
               variant="primary"
               size="lg"
-              onClick={() => navigate("/onboarding")}
+              onClick={() => navigate("/auth")}
             >
               Começar gratuitamente
             </Button>
