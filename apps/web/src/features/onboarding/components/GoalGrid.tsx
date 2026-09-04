@@ -12,7 +12,15 @@ const goalIcons: Record<(typeof studyGoals)[number]["id"], string> = {
 };
 
 export function GoalGrid() {
-  const { studyGoal, setStudyGoal } = useStudyProgress();
+  const {
+    studyGoal,
+    setStudyGoal,
+    isStudyGoalLoading,
+    isStudyGoalSaving,
+    studyGoalError,
+  } = useStudyProgress();
+
+  const isSelectionDisabled = isStudyGoalLoading || isStudyGoalSaving;
 
   return (
     <section className="mt-16">
@@ -21,6 +29,18 @@ export function GoalGrid() {
         Quem você deseja se tornar?
       </h2>
 
+      {isStudyGoalLoading && (
+        <p className="mb-6 text-center text-sm text-zinc-400">
+          Carregando seu objetivo de estudo...
+        </p>
+      )}
+
+      {studyGoalError && (
+        <p className="mb-6 text-center text-sm text-red-300" role="alert">
+          {studyGoalError}
+        </p>
+      )}
+
       <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         {studyGoals.map((goal) => (
           <GoalCard
@@ -28,7 +48,8 @@ export function GoalGrid() {
             {...goal}
             icon={goalIcons[goal.id]}
             selected={studyGoal?.id === goal.id}
-            onClick={() => setStudyGoal(goal)}
+            disabled={isSelectionDisabled}
+            onClick={() => void setStudyGoal(goal)}
           />
         ))}
       </div>

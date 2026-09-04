@@ -36,3 +36,7 @@ export const studyGoals = [
     description: "Descubra novas possibilidades de aprendizado.",
   },
 ] as const satisfies readonly StudyGoal[];
+
+export function findStudyGoal(goalId: string): StudyGoal | null {
+  return studyGoals.find((goal) => goal.id === goalId) ?? null;
+}

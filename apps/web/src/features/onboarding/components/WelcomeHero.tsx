@@ -5,7 +5,8 @@ import { GoalGrid } from "./GoalGrid";
 
 export function WelcomeHero() {
   const navigate = useNavigate();
-  const { studyGoal } = useStudyProgress();
+  const { studyGoal, isStudyGoalLoading, isStudyGoalSaving } =
+    useStudyProgress();
 
   return (
     <section className="mx-auto max-w-4xl text-center">
@@ -30,7 +31,7 @@ export function WelcomeHero() {
 
       <button
         type="button"
-        disabled={!studyGoal}
+        disabled={!studyGoal || isStudyGoalLoading || isStudyGoalSaving}
         onClick={() => {
           if (studyGoal) {
             navigate("/dashboard");

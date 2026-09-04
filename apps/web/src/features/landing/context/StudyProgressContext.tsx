@@ -2,11 +2,18 @@
 import { prioritizeSubjects } from "@/features/study/services/SubjectPriorityEngine";
 import type { SubjectPerformance } from "@/features/study/types/SubjectPerformance";
 import type { StudyGoal } from "@/features/study/types/StudyGoal";
+import {
+  loadStudyGoal,
+  saveStudyGoal,
+} from "@/features/study/repositories/StudyGoalRepository";
+import { hydrateStudyGoal } from "@/features/study/services/hydrateStudyGoal";
+import { useAuth } from "@/features/auth/context/useAuth";
 
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -28,7 +35,13 @@ type StudyProgress = {
 type StudyProgressContextValue = {
   studyGoal: StudyGoal | null;
 
-  setStudyGoal: (goal: StudyGoal) => void;
+  setStudyGoal: (goal: StudyGoal) => Promise<void>;
+
+  isStudyGoalLoading: boolean;
+
+  isStudyGoalSaving: boolean;
+
+  studyGoalError: string | null;
 
   reviewQuestions: Question[];
 
@@ -57,7 +70,14 @@ const StudyProgressContext = createContext<StudyProgressContextValue | null>(
 );
 
 export function StudyProgressProvider({ children }: { children: ReactNode }) {
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const userId = user?.id;
   const [studyGoal, setStudyGoal] = useState<StudyGoal | null>(null);
+  const [isStudyGoalLoading, setIsStudyGoalLoading] = useState(
+    () => Boolean(userId),
+  );
+  const [isStudyGoalSaving, setIsStudyGoalSaving] = useState(false);
+  const [studyGoalError, setStudyGoalError] = useState<string | null>(null);
 
   const [progress, setProgress] = useState<StudyProgress>({
     questionsAnswered: 0,
@@ -66,6 +86,77 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
     studySessions: 0,
     questionResults: [],
   });
+
+  useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!userId) {
+      return;
+    }
+
+    let isActive = true;
+
+    void loadStudyGoal(userId)
+      .then((persistedGoal) => {
+        if (!isActive) {
+          return;
+        }
+
+        const hydratedGoal = hydrateStudyGoal(persistedGoal?.goalId ?? null);
+
+        if (persistedGoal && !hydratedGoal) {
+          setStudyGoalError(
+            "Não foi possível carregar seu objetivo de estudo. Escolha um novo objetivo para continuar.",
+          );
+        }
+
+        setStudyGoal(hydratedGoal);
+      })
+      .catch(() => {
+        if (isActive) {
+          setStudyGoalError(
+            "Não foi possível carregar seu objetivo de estudo. Tente recarregar a página.",
+          );
+        }
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsStudyGoalLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [isAuthLoading, userId]);
+
+  const updateStudyGoal = useCallback(
+    async (goal: StudyGoal) => {
+      if (!userId) {
+        setStudyGoalError(
+          "Sua sessão expirou. Entre novamente para salvar seu objetivo.",
+        );
+        return;
+      }
+
+      setIsStudyGoalSaving(true);
+      setStudyGoalError(null);
+
+      try {
+        await saveStudyGoal(userId, goal.id);
+        setStudyGoal(goal);
+      } catch {
+        setStudyGoalError(
+          "Não foi possível salvar seu objetivo de estudo. Tente novamente.",
+        );
+      } finally {
+        setIsStudyGoalSaving(false);
+      }
+    },
+    [userId],
+  );
 
   const subjectPerformance = useMemo(
     () => calculateSubjectPerformance(progress.questionResults),
@@ -140,7 +231,13 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
     () => ({
       studyGoal,
 
-      setStudyGoal,
+      setStudyGoal: updateStudyGoal,
+
+      isStudyGoalLoading,
+
+      isStudyGoalSaving,
+
+      studyGoalError,
 
       progress,
 
@@ -156,12 +253,16 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
     }),
     [
       studyGoal,
+      isStudyGoalLoading,
+      isStudyGoalSaving,
+      studyGoalError,
       progress,
       subjectPerformance,
       prioritizedSubjects,
       reviewQuestions,
       registerQuestionResult,
       registerReviewResult,
+      updateStudyGoal,
     ],
   );
 

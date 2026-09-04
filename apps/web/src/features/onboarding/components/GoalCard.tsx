@@ -3,6 +3,7 @@ type GoalCardProps = {
   title: string;
   description: string;
   selected?: boolean;
+  disabled?: boolean;
   onClick?: () => void;
 };
 
@@ -11,10 +12,13 @@ export function GoalCard({
   title,
   description,
   selected = false,
+  disabled = false,
   onClick,
 }: GoalCardProps) {
   return (
     <button
+      type="button"
+      disabled={disabled}
       onClick={onClick}
       className={`
         group
@@ -29,6 +33,10 @@ export function GoalCard({
             ? "border-blue-500 bg-blue-500/10"
             : "border-zinc-800 bg-zinc-900 hover:border-blue-500 hover:-translate-y-1"
         }
+        disabled:cursor-not-allowed
+        disabled:opacity-60
+        disabled:hover:border-zinc-800
+        disabled:hover:translate-y-0
       `}
     >
       <div className="text-4xl">{icon}</div>
