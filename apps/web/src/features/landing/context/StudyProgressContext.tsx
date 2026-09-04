@@ -7,6 +7,11 @@ import {
   saveStudyGoal,
 } from "@/features/study/repositories/StudyGoalRepository";
 import { hydrateStudyGoal } from "@/features/study/services/hydrateStudyGoal";
+import {
+  loadQuestionAttempts,
+  saveQuestionAttempt,
+} from "@/features/study/repositories/StudyProgressRepository";
+import { hydrateQuestionResults } from "@/features/study/services/hydrateQuestionResults";
 import { useAuth } from "@/features/auth/context/useAuth";
 
 import {
@@ -43,6 +48,12 @@ type StudyProgressContextValue = {
 
   studyGoalError: string | null;
 
+  isProgressLoading: boolean;
+
+  isQuestionResultSaving: boolean;
+
+  progressError: string | null;
+
   reviewQuestions: Question[];
 
   progress: StudyProgress;
@@ -56,7 +67,7 @@ type StudyProgressContextValue = {
     subject: string,
     correct: boolean,
     isReview?: boolean,
-  ) => void;
+  ) => Promise<boolean>;
 
   registerReviewResult: (
     questions: number,
@@ -78,6 +89,11 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
   );
   const [isStudyGoalSaving, setIsStudyGoalSaving] = useState(false);
   const [studyGoalError, setStudyGoalError] = useState<string | null>(null);
+  const [isProgressLoading, setIsProgressLoading] = useState(
+    () => Boolean(userId),
+  );
+  const [isQuestionResultSaving, setIsQuestionResultSaving] = useState(false);
+  const [progressError, setProgressError] = useState<string | null>(null);
 
   const [progress, setProgress] = useState<StudyProgress>({
     questionsAnswered: 0,
@@ -132,6 +148,50 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
     };
   }, [isAuthLoading, userId]);
 
+  useEffect(() => {
+    if (isAuthLoading || !userId) {
+      return;
+    }
+
+    let isActive = true;
+
+    void loadQuestionAttempts(userId)
+      .then((attempts) => {
+        if (!isActive) {
+          return;
+        }
+
+        const questionResults = hydrateQuestionResults(attempts);
+        const correctAnswers = questionResults.filter(
+          (result) => result.correct,
+        ).length;
+
+        setProgress((current) => ({
+          ...current,
+          questionsAnswered: questionResults.length,
+          correctAnswers,
+          wrongAnswers: questionResults.length - correctAnswers,
+          questionResults,
+        }));
+      })
+      .catch(() => {
+        if (isActive) {
+          setProgressError(
+            "Não foi possível carregar seu histórico de questões. Tente recarregar a página.",
+          );
+        }
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsProgressLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [isAuthLoading, userId]);
+
   const updateStudyGoal = useCallback(
     async (goal: StudyGoal) => {
       if (!userId) {
@@ -174,40 +234,57 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
   );
 
   const registerQuestionResult = useCallback(
-    (
+    async (
       questionId: number,
       subject: string,
       correct: boolean,
       isReview = false,
     ) => {
-      const previousAttempts = progress.questionResults.filter(
-        (item) => item.questionId === questionId,
-      ).length;
+      if (!userId) {
+        setProgressError(
+          "Sua sessão expirou. Entre novamente para registrar sua resposta.",
+        );
+        return false;
+      }
 
-      const attempt = previousAttempts + 1;
+      if (isProgressLoading) {
+        setProgressError(
+          "Seu histórico ainda está sendo carregado. Aguarde um instante para responder.",
+        );
+        return false;
+      }
 
-      const result: QuestionResult = {
-        questionId,
-        subject,
-        correct,
-        answeredAt: new Date().toISOString(),
-        attempt,
-        isReview,
-      };
+      setIsQuestionResultSaving(true);
+      setProgressError(null);
 
-      setProgress((current) => ({
-        ...current,
+      try {
+        const savedAttempt = await saveQuestionAttempt({
+          questionId,
+          subject,
+          correct,
+          isReview,
+        });
+        const result = hydrateQuestionResults([savedAttempt])[0];
 
-        questionsAnswered: current.questionsAnswered + 1,
+        setProgress((current) => ({
+          ...current,
+          questionsAnswered: current.questionsAnswered + 1,
+          correctAnswers: current.correctAnswers + (correct ? 1 : 0),
+          wrongAnswers: current.wrongAnswers + (correct ? 0 : 1),
+          questionResults: [...current.questionResults, result],
+        }));
 
-        correctAnswers: current.correctAnswers + (correct ? 1 : 0),
-
-        wrongAnswers: current.wrongAnswers + (correct ? 0 : 1),
-
-        questionResults: [...current.questionResults, result],
-      }));
+        return true;
+      } catch {
+        setProgressError(
+          "Não foi possível registrar sua resposta. Tente novamente.",
+        );
+        return false;
+      } finally {
+        setIsQuestionResultSaving(false);
+      }
     },
-    [progress.questionResults],
+    [isProgressLoading, userId],
   );
 
   const registerReviewResult = useCallback(
@@ -239,6 +316,12 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
 
       studyGoalError,
 
+      isProgressLoading,
+
+      isQuestionResultSaving,
+
+      progressError,
+
       progress,
 
       subjectPerformance,
@@ -256,6 +339,9 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
       isStudyGoalLoading,
       isStudyGoalSaving,
       studyGoalError,
+      isProgressLoading,
+      isQuestionResultSaving,
+      progressError,
       progress,
       subjectPerformance,
       prioritizedSubjects,

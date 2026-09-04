@@ -11,6 +11,8 @@ import { MainLayout } from "@/layouts/MainLayout";
 export function DashboardPage() {
   const {
     studyGoal,
+    isProgressLoading,
+    progressError,
     progress,
     subjectPerformance,
     prioritizedSubjects,
@@ -26,6 +28,18 @@ export function DashboardPage() {
     <MainLayout>
       <div className="mx-auto max-w-6xl px-6 py-12 md:py-16">
         <DashboardHeader />
+
+        {isProgressLoading && (
+          <p className="mt-6 text-sm text-zinc-400">
+            Carregando seu histórico de estudos...
+          </p>
+        )}
+
+        {progressError && (
+          <p className="mt-6 text-sm text-red-300" role="alert">
+            {progressError}
+          </p>
+        )}
 
         <div className="mt-10 space-y-8">
           <GoalCard goal={studyGoal} />

@@ -14,11 +14,18 @@ export function QuestionsPage() {
 
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [isAnswerSaving, setIsAnswerSaving] = useState(false);
 
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [wrongAnswers, setWrongAnswers] = useState(0);
 
-  const { registerQuestionResult, reviewQuestions } = useStudyProgress();
+  const {
+    registerQuestionResult,
+    reviewQuestions,
+    isProgressLoading,
+    isQuestionResultSaving,
+    progressError,
+  } = useStudyProgress();
 
   const [sessionQuestions] = useState<Question[]>(() =>
     reviewMode ? [...reviewQuestions] : questions,
@@ -50,21 +57,33 @@ export function QuestionsPage() {
   }
   const bank = examBanks.find((item) => item.id === question.bankId);
 
-  const handleAnswer = (answerId: string) => {
-    if (selectedAnswer !== null) {
+  const handleAnswer = async (answerId: string) => {
+    if (
+      selectedAnswer !== null ||
+      isAnswerSaving ||
+      isQuestionResultSaving ||
+      isProgressLoading
+    ) {
       return;
     }
 
-    setSelectedAnswer(answerId);
-
     const isCorrect = answerId === question.correctAnswer;
+    setIsAnswerSaving(true);
 
-    registerQuestionResult(
+    const wasSaved = await registerQuestionResult(
       question.id,
       question.subject,
       isCorrect,
       reviewMode,
     );
+
+    setIsAnswerSaving(false);
+
+    if (!wasSaved) {
+      return;
+    }
+
+    setSelectedAnswer(answerId);
 
     if (isCorrect) {
       setCorrectAnswers((current) => current + 1);
@@ -154,8 +173,13 @@ export function QuestionsPage() {
                 <button
                   key={`${currentQuestion}-${alternative.id}`}
                   type="button"
-                  onClick={() => handleAnswer(alternative.id)}
-                  disabled={isAnswered}
+                  onClick={() => void handleAnswer(alternative.id)}
+                  disabled={
+                    isAnswered ||
+                    isAnswerSaving ||
+                    isQuestionResultSaving ||
+                    isProgressLoading
+                  }
                   className={`flex w-full items-center gap-4 rounded-xl border p-4 text-left transition ${className}`}
                 >
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold">
@@ -167,6 +191,18 @@ export function QuestionsPage() {
               );
             })}
           </div>
+
+          {isProgressLoading && (
+            <p className="mt-4 text-sm text-slate-400">
+              Carregando seu histórico de estudos...
+            </p>
+          )}
+
+          {progressError && (
+            <p className="mt-4 text-sm text-red-300" role="alert">
+              {progressError}
+            </p>
+          )}
 
           {isAnswered && (
             <div className="mt-8 rounded-2xl border border-slate-700 bg-slate-800/70 p-5">
