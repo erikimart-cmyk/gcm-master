@@ -8,6 +8,7 @@ export function hydrateQuestionResults(
   return attempts.map((attempt) => ({
     questionId: attempt.questionId,
     subject: attempt.subject,
+    topic: attempt.topic,
     correct: attempt.correct,
     answeredAt: attempt.answeredAt,
     attempt: attempt.attempt,

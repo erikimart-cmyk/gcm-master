@@ -3,6 +3,7 @@ import { getSupabaseClient } from "@/features/auth/lib/supabase";
 export type PersistedQuestionResult = {
   questionId: number;
   subject: string;
+  topic?: string;
   correct: boolean;
   answeredAt: string;
   attempt: number;
@@ -12,6 +13,7 @@ export type PersistedQuestionResult = {
 type QuestionAttemptInput = {
   questionId: number;
   subject: string;
+  topic?: string;
   correct: boolean;
   isReview: boolean;
 };
@@ -34,7 +36,7 @@ export async function loadQuestionAttempts(
 ): Promise<PersistedQuestionResult[]> {
   const { data, error } = await getClient()
     .from("question_attempts")
-    .select("question_id, subject, correct, answered_at, attempt_number, is_review")
+    .select("question_id, subject, topic, correct, answered_at, attempt_number, is_review")
     .eq("user_id", userId)
     .order("answered_at", { ascending: true })
     .order("created_at", { ascending: true });
@@ -46,6 +48,7 @@ export async function loadQuestionAttempts(
   return data.map((attempt) => ({
     questionId: attempt.question_id,
     subject: attempt.subject,
+    topic: attempt.topic ?? undefined,
     correct: attempt.correct,
     answeredAt: attempt.answered_at,
     attempt: attempt.attempt_number,
@@ -56,12 +59,18 @@ export async function loadQuestionAttempts(
 export async function saveQuestionAttempt(
   input: QuestionAttemptInput,
 ): Promise<PersistedQuestionResult> {
-  const { data, error } = await getClient().rpc("record_question_attempt", {
-    p_question_id: input.questionId,
-    p_subject: input.subject,
-    p_correct: input.correct,
-    p_is_review: input.isReview,
-  });
+  const { data, error } = input.topic
+    ? await getClient().rpc("record_assigned_question_attempt", {
+        p_question_id: input.questionId,
+        p_correct: input.correct,
+        p_is_review: input.isReview,
+      })
+    : await getClient().rpc("record_question_attempt", {
+        p_question_id: input.questionId,
+        p_subject: input.subject,
+        p_correct: input.correct,
+        p_is_review: input.isReview,
+      });
 
   if (error) {
     throw error;
@@ -76,6 +85,7 @@ export async function saveQuestionAttempt(
   return {
     questionId: attempt.question_id,
     subject: attempt.subject,
+    topic: attempt.topic ?? undefined,
     correct: attempt.correct,
     answeredAt: attempt.answered_at,
     attempt: attempt.attempt_number,

@@ -1,6 +1,7 @@
 export type QuestionResult = {
   questionId: number;
   subject: string;
+  topic?: string;
   correct: boolean;
   answeredAt: string;
 
