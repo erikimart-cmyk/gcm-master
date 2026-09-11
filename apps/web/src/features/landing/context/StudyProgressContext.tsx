@@ -8,6 +8,11 @@ import {
 } from "@/features/study/repositories/StudyGoalRepository";
 import { hydrateStudyGoal } from "@/features/study/services/hydrateStudyGoal";
 import {
+  loadStudyTrack,
+  saveStudyTrack,
+  type PersistedStudyTrack,
+} from "@/features/study/repositories/StudyTrackRepository";
+import {
   loadQuestionAttempts,
   saveQuestionAttempt,
 } from "@/features/study/repositories/StudyProgressRepository";
@@ -47,6 +52,16 @@ type StudyProgressContextValue = {
   isStudyGoalSaving: boolean;
 
   studyGoalError: string | null;
+
+  studyTrack: PersistedStudyTrack | null;
+
+  setStudyTrack: (examId: string) => Promise<void>;
+
+  isStudyTrackLoading: boolean;
+
+  isStudyTrackSaving: boolean;
+
+  studyTrackError: string | null;
 
   isProgressLoading: boolean;
 
@@ -89,8 +104,16 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
   );
   const [isStudyGoalSaving, setIsStudyGoalSaving] = useState(false);
   const [studyGoalError, setStudyGoalError] = useState<string | null>(null);
-  const [isProgressLoading, setIsProgressLoading] = useState(
-    () => Boolean(userId),
+  const [studyTrack, setStudyTrack] = useState<PersistedStudyTrack | null>(
+    null,
+  );
+  const [isStudyTrackLoading, setIsStudyTrackLoading] = useState(() =>
+    Boolean(userId),
+  );
+  const [isStudyTrackSaving, setIsStudyTrackSaving] = useState(false);
+  const [studyTrackError, setStudyTrackError] = useState<string | null>(null);
+  const [isProgressLoading, setIsProgressLoading] = useState(() =>
+    Boolean(userId),
   );
   const [isQuestionResultSaving, setIsQuestionResultSaving] = useState(false);
   const [progressError, setProgressError] = useState<string | null>(null);
@@ -140,6 +163,37 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
       .finally(() => {
         if (isActive) {
           setIsStudyGoalLoading(false);
+        }
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [isAuthLoading, userId]);
+
+  useEffect(() => {
+    if (isAuthLoading || !userId) {
+      return;
+    }
+
+    let isActive = true;
+
+    void loadStudyTrack(userId)
+      .then((track) => {
+        if (isActive) {
+          setStudyTrack(track);
+        }
+      })
+      .catch(() => {
+        if (isActive) {
+          setStudyTrackError(
+            "Não foi possível carregar sua trilha de estudos. Tente recarregar a página.",
+          );
+        }
+      })
+      .finally(() => {
+        if (isActive) {
+          setIsStudyTrackLoading(false);
         }
       });
 
@@ -213,6 +267,33 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
         );
       } finally {
         setIsStudyGoalSaving(false);
+      }
+    },
+    [userId],
+  );
+
+  const updateStudyTrack = useCallback(
+    async (examId: string) => {
+      if (!userId) {
+        setStudyTrackError(
+          "Sua sessão expirou. Entre novamente para salvar sua trilha.",
+        );
+        return;
+      }
+
+      setIsStudyTrackSaving(true);
+      setStudyTrackError(null);
+
+      try {
+        await saveStudyTrack(userId, examId);
+        const track = await loadStudyTrack(userId);
+        setStudyTrack(track);
+      } catch {
+        setStudyTrackError(
+          "Não foi possível salvar sua trilha de estudos. Tente novamente.",
+        );
+      } finally {
+        setIsStudyTrackSaving(false);
       }
     },
     [userId],
@@ -316,6 +397,16 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
 
       studyGoalError,
 
+      studyTrack,
+
+      setStudyTrack: updateStudyTrack,
+
+      isStudyTrackLoading,
+
+      isStudyTrackSaving,
+
+      studyTrackError,
+
       isProgressLoading,
 
       isQuestionResultSaving,
@@ -339,6 +430,10 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
       isStudyGoalLoading,
       isStudyGoalSaving,
       studyGoalError,
+      studyTrack,
+      isStudyTrackLoading,
+      isStudyTrackSaving,
+      studyTrackError,
       isProgressLoading,
       isQuestionResultSaving,
       progressError,
@@ -349,6 +444,7 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
       registerQuestionResult,
       registerReviewResult,
       updateStudyGoal,
+      updateStudyTrack,
     ],
   );
 
