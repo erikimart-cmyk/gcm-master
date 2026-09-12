@@ -5,6 +5,7 @@ import { useAuth } from "../context/useAuth";
 
 type AuthLocationState = {
   from?: string;
+  mode?: "sign-in" | "sign-up";
 };
 
 function getAuthErrorMessage(error: unknown) {
@@ -27,14 +28,17 @@ export function AuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const { configurationError, isLoading, signIn, signUp, user } = useAuth();
-  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const locationState = location.state as AuthLocationState | null;
+  const [mode, setMode] = useState<"sign-in" | "sign-up">(
+    locationState?.mode ?? "sign-in",
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const redirectTo = (location.state as AuthLocationState | null)?.from ?? "/onboarding";
+  const redirectTo = locationState?.from ?? "/onboarding";
 
   if (user) {
     return <Navigate replace to={redirectTo} />;

@@ -8,6 +8,7 @@ import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import { OnboardingPage } from "@/features/onboarding";
 import { RequireAuth } from "@/features/auth/components/RequireAuth";
 import { AuthPage } from "@/features/auth/pages/AuthPage";
+import { PlansPage } from "@/features/plans/pages/PlansPage";
 
 export function AppRouter() {
   return (
@@ -15,6 +16,7 @@ export function AppRouter() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/planos" element={<PlansPage />} />
         <Route element={<RequireAuth />}>
           <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/dashboard" element={<DashboardPage />} />

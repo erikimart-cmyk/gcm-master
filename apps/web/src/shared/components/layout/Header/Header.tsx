@@ -21,7 +21,11 @@ export function Header() {
           <ul className="flex gap-6 text-slate-300">
             <li>Início</li>
             <li>Recursos</li>
-            <li>Planos</li>
+            <li>
+              <Link className="transition hover:text-white" to="/planos">
+                Planos
+              </Link>
+            </li>
             <li>
               {user ? (
                 <button onClick={handleSignOut} type="button">
