@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { MainLayout } from "@/layouts/MainLayout";
 import { useStudyProgress } from "@/features/landing/context/StudyProgressContext";
@@ -29,12 +29,19 @@ export function ReviewPage() {
           </h1>
 
           <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-400">
-            A ZYNVO identifica os conteúdos que merecem mais atenção
-            para melhorar seu desempenho.
+            A ZYNVO identifica os conteúdos que merecem mais atenção para
+            melhorar seu desempenho.
           </p>
+
+          <Link
+            className="mt-6 inline-flex rounded-xl border border-violet-500/30 bg-violet-500/10 px-5 py-3 font-semibold text-violet-200 transition hover:bg-violet-500/20"
+            to="/revisao/conteudo"
+          >
+            Conteúdo de revisão →
+          </Link>
         </div>
 
-                {!topPriority && !hasStudyHistory && (
+        {!topPriority && !hasStudyHistory && (
           <div className="rounded-3xl border border-blue-500/20 bg-slate-900/70 p-8 shadow-xl">
             <div className="flex flex-col gap-8 md:flex-row md:items-start">
               <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-3xl bg-blue-600 text-2xl font-medium text-white">
