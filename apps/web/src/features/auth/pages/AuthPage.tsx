@@ -79,13 +79,18 @@ export function AuthPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-[#09090B] px-6 py-12 text-white">
       <section className="w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 p-8 shadow-2xl shadow-black/30">
-        <Link className="text-sm text-violet-300 transition hover:text-violet-200" to="/">
-          ← Voltar para a página inicial
-        </Link>
+        <div className="flex flex-col items-start gap-6">
+          <Link
+            className="text-sm text-violet-300 transition hover:text-violet-200"
+            to="/"
+          >
+            ← Voltar para a página inicial
+          </Link>
 
-        <span className="mt-8 inline-flex rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-sm text-violet-200">
-          ZYNVO
-        </span>
+          <span className="inline-flex rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-sm text-violet-200">
+            ZYNVO
+          </span>
+        </div>
         <h1 className="mt-5 text-3xl font-bold">
           {isSignUp ? "Crie sua conta" : "Entre na sua conta"}
         </h1>

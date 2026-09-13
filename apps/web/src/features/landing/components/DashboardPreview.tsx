@@ -1,136 +1,68 @@
-import { useNavigate } from "react-router-dom";
-const subjects = [
+const journeySteps = [
   {
-    name: "Português",
-    icon: "📚",
-    progress: 72,
+    label: "Escolha sua meta",
+    detail: "Concursos, idiomas, tecnologia e mais",
+    icon: "✦",
+    tone: "border-blue-400/60 text-blue-100",
   },
   {
-    name: "Direito Constitucional",
-    icon: "⚖️",
-    progress: 45,
+    label: "Pratique no seu ritmo",
+    detail: "Questões e conteúdos que fazem sentido",
+    icon: "◌",
+    tone: "border-cyan-400/60 text-cyan-50",
+  },
+  {
+    label: "Enxergue sua evolução",
+    detail: "Seu progresso aparece a cada resposta",
+    icon: "↗",
+    tone: "border-violet-400/60 text-violet-50",
   },
 ];
 
 export function DashboardPreview() {
-  const navigate = useNavigate();
   return (
-    <div className="rounded-3xl border border-slate-800 bg-slate-900/70 p-8 shadow-2xl backdrop-blur">
-      <div className="mb-6 flex items-center justify-between">
-        <h3 className="text-lg font-semibold">
-          Dashboard ZYNVO
-        </h3>
+    <div className="relative w-full max-w-md">
+      <div aria-hidden="true" className="absolute inset-8 -z-10 rounded-full bg-gradient-to-br from-blue-500/30 via-cyan-400/15 to-violet-500/30 blur-3xl animate-[pulse_6s_ease-in-out_infinite] motion-reduce:animate-none" />
 
-        <span className="rounded-full bg-blue-500 px-3 py-1 text-xs font-medium">
-          IA Ativa
-        </span>
-      </div>
+      <div className="relative overflow-hidden rounded-[2rem] border border-slate-700/80 bg-slate-900/80 p-5 shadow-[0_30px_80px_rgba(2,6,23,0.7)] backdrop-blur-xl sm:p-7">
+        <div aria-hidden="true" className="absolute -right-16 -top-16 h-40 w-40 rounded-full border border-cyan-300/20 bg-cyan-400/10 animate-[spin_24s_linear_infinite] motion-reduce:animate-none" />
+        <div aria-hidden="true" className="absolute -bottom-20 -left-16 h-44 w-44 rounded-full border border-violet-300/20 bg-violet-500/10 animate-[spin_30s_linear_infinite_reverse] motion-reduce:animate-none" />
 
-      <div className="space-y-4">
-        {subjects.map((subject) => (
-          <div
-            key={subject.name}
-            className="rounded-xl bg-slate-800 p-4"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-base">
-                {subject.icon} {subject.name}
-              </span>
-
-              <span className="text-sm text-slate-300">
-                {subject.progress}%
-              </span>
-            </div>
-
-            <div className="h-2 overflow-hidden rounded-full bg-slate-700">
-              <div
-                className="h-full rounded-full bg-blue-500"
-                style={{ width: `${subject.progress}%` }}
-              />
-            </div>
+        <div className="relative flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-300">Prévia da jornada</p>
+            <h2 className="mt-2 text-2xl font-bold text-white">Seu caminho ganha clareza</h2>
           </div>
-        ))}
-
-        <div className="rounded-xl bg-slate-800 p-4">
-          🧠 IA preparando sua próxima revisão personalizada
+          <span className="rounded-full border border-violet-300/30 bg-violet-500/15 px-3 py-1 text-xs font-semibold text-violet-100">DEMONSTRAÇÃO</span>
         </div>
 
-        <div className="rounded-xl bg-slate-800 p-5">
-  <div className="flex items-start gap-3">
-    <span className="text-2xl">🧠</span>
+        <p className="relative mt-3 text-sm leading-6 text-slate-400">
+          Veja como a ZYNVO organiza sua experiência de estudo.
+        </p>
 
-    <div className="flex-1">
-      <p className="text-sm font-semibold text-blue-400">
-        Recomendação ZYNVO
-      </p>
+        <div className="relative mt-7 space-y-3">
+          {journeySteps.map((step, index) => (
+            <div key={step.label} className="relative">
+              {index < journeySteps.length - 1 && (
+                <div aria-hidden="true" className="absolute left-6 top-12 h-5 border-l border-dashed border-blue-300/35" />
+              )}
+              <div className={`flex items-center gap-4 border-l-2 py-3 pl-4 ${step.tone}`}>
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-current/20 bg-slate-950/45 text-lg shadow-inner">{step.icon}</span>
+                <div>
+                  <p className="font-semibold">{step.label}</p>
+                  <p className="mt-1 text-sm text-slate-300">{step.detail}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
 
-      <p className="mt-2 text-base leading-6 text-white">
-        Seu desempenho em Direito Constitucional está abaixo
-        das demais matérias.
-      </p>
-
-      <p className="mt-2 text-sm text-slate-400">
-        A ZYNVO recomenda uma revisão de 20 minutos para
-        reforçar esse conteúdo.
-      </p>
-
-      <button
-        type="button"
-        onClick={() => navigate("/revisao")}
-        className="mt-4 rounded-lg bg-blue-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-600"
-      >
-        Começar revisão →
-      </button>
-    </div>
-  </div>
-</div>
-              <div className="mt-8">
-        <h4 className="mb-4 text-lg font-semibold">
-          Seu desempenho
-        </h4>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="rounded-xl bg-slate-800 p-4">
-            <p className="text-sm text-slate-400">
-              Questões respondidas
-            </p>
-
-            <p className="mt-1 text-2xl font-bold text-white">
-              248
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-slate-800 p-4">
-            <p className="text-sm text-slate-400">
-              Aproveitamento
-            </p>
-
-            <p className="mt-1 text-2xl font-bold text-blue-400">
-              76%
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-slate-800 p-4">
-            <p className="text-sm text-slate-400">
-              Horas estudadas
-            </p>
-
-            <p className="mt-1 text-2xl font-bold text-white">
-              18h 40min
-            </p>
-          </div>
-
-          <div className="rounded-xl bg-slate-800 p-4">
-            <p className="text-sm text-slate-400">
-              Sequência atual
-            </p>
-
-            <p className="mt-1 text-2xl font-bold text-blue-400">
-              7 dias 🔥
-            </p>
+        <div className="relative mt-6 rounded-2xl border border-slate-700 bg-slate-950/60 p-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-violet-500 text-sm shadow-[0_0_20px_rgba(96,165,250,0.5)]">Z</span>
+            <p className="text-sm leading-6 text-slate-200">Fluxo demonstrativo. Sua jornada começa pelo botão principal.</p>
           </div>
         </div>
-      </div>
       </div>
     </div>
   );

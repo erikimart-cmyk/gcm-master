@@ -1,1 +1,29 @@
 @import "tailwindcss";
+
+@keyframes zynvo-logo-sweep {
+  0%,
+  42% {
+    transform: translateX(-180%) skewX(-18deg);
+    opacity: 0;
+  }
+
+  48% {
+    opacity: 0.85;
+  }
+
+  62%,
+  100% {
+    transform: translateX(620%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
+.zynvo-logo-sweep {
+  animation: zynvo-logo-sweep 7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .zynvo-logo-sweep {
+    animation: none;
+  }
+}
