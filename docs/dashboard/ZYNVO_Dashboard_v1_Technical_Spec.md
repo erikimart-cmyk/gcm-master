@@ -1,7 +1,12 @@
 # ZYNVO — Dashboard v1: Especificação Técnica
 
-**Status:** especificação arquitetural aprovada para implementação futura  
+**Status deste documento:** baseline histórico/arquitetural da Dashboard v1. O texto abaixo permanece a carta original da V1 e não é reescrito retroativamente.
+
 **Escopo deste documento:** Dashboard v1 e suas dependências de domínio. Este documento não implementa mudanças.
+
+**Relação histórica:** a evolução de engajamento está documentada em `ZYNVO_Dashboard_v2_Engagement_Spec.md` e o trabalho correspondente foi versionado no repositório. A V2 complementa/refina a V1 e não apaga este histórico.
+
+**Status vigente dos blocos:** consultar `docs/PROJECT_STATUS_AND_GOVERNANCE.md`.
 
 ## 1. Objetivo e responsabilidade
 
