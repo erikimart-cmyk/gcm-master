@@ -10,11 +10,23 @@ export function ReviewPage() {
     progress,
     prioritizedSubjects,
     reviewQuestions,
+    studyGoal,
+    studyTrack,
+    isStudyTrackLoading,
+    studyTrackError,
   } = useStudyProgress();
 
   const hasStudyHistory = progress.questionResults.length > 0;
 
   const topPriority = prioritizedSubjects[0];
+  const requiresTrack = studyGoal?.id === "concursos";
+  const needsTrackSelection = requiresTrack && !studyTrack;
+  const newStudyPath = needsTrackSelection
+    ? "/onboarding"
+    : "/revisao/questoes";
+  const newStudyLabel = needsTrackSelection
+    ? "Selecionar trilha →"
+    : "Começar questões →";
 
   return (
     <MainLayout>
@@ -65,58 +77,69 @@ export function ReviewPage() {
 
                 <button
                   type="button"
-                  onClick={() => navigate("/revisao/questoes")}
+                  disabled={requiresTrack && isStudyTrackLoading}
+                  onClick={() => navigate(newStudyPath)}
                   className="mt-8 rounded-2xl bg-blue-600 px-8 py-4 text-lg font-bold text-white transition hover:bg-blue-500"
                 >
-                  Começar questões →
+                  {requiresTrack && isStudyTrackLoading
+                    ? "Carregando trilha..."
+                    : newStudyLabel}
+                </button>
+                {needsTrackSelection && studyTrackError && (
+                  <p className="mt-4 text-sm text-red-300" role="alert">
+                    {studyTrackError}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+        {!topPriority && hasStudyHistory && (
+          <div className="rounded-3xl border border-emerald-500/20 bg-slate-900/70 p-8 shadow-xl">
+            <div className="flex flex-col gap-8 md:flex-row md:items-start">
+              <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-3xl bg-emerald-600 text-2xl font-medium text-white">
+                ✓
+              </div>
+
+              <div>
+                <p className="text-lg font-semibold uppercase tracking-wide text-emerald-400">
+                  Inteligência ZYNVO
+                </p>
+
+                <h2 className="mt-4 text-3xl font-bold text-white">
+                  Você está em dia!
+                </h2>
+
+                <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-300">
+                  A ZYNVO analisou seu desempenho e, neste momento, não
+                  encontrou questões pendentes que precisem de revisão. Continue
+                  praticando para manter seu desempenho.
+                </p>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400">
+                    ✓ Nenhum erro pendente
+                  </span>
+
+                  <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-4 py-2 text-sm font-medium text-blue-400">
+                    Desempenho atualizado
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={requiresTrack && isStudyTrackLoading}
+                  onClick={() => navigate(newStudyPath)}
+                  className="mt-8 rounded-2xl bg-blue-600 px-8 py-4 text-lg font-bold text-white transition hover:bg-blue-500"
+                >
+                  {needsTrackSelection
+                    ? "Selecionar trilha →"
+                    : "Continuar estudando →"}
                 </button>
               </div>
             </div>
           </div>
         )}
-{!topPriority && hasStudyHistory && (
-  <div className="rounded-3xl border border-emerald-500/20 bg-slate-900/70 p-8 shadow-xl">
-    <div className="flex flex-col gap-8 md:flex-row md:items-start">
-      <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-3xl bg-emerald-600 text-2xl font-medium text-white">
-        ✓
-      </div>
-
-      <div>
-        <p className="text-lg font-semibold uppercase tracking-wide text-emerald-400">
-          Inteligência ZYNVO
-        </p>
-
-        <h2 className="mt-4 text-3xl font-bold text-white">
-          Você está em dia!
-        </h2>
-
-        <p className="mt-4 max-w-3xl text-lg leading-8 text-slate-300">
-          A ZYNVO analisou seu desempenho e, neste momento, não
-          encontrou questões pendentes que precisem de revisão.
-          Continue praticando para manter seu desempenho.
-        </p>
-
-        <div className="mt-6 flex flex-wrap gap-3">
-          <span className="rounded-full border border-emerald-500/20 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-400">
-            ✓ Nenhum erro pendente
-          </span>
-
-          <span className="rounded-full border border-blue-500/20 bg-blue-500/10 px-4 py-2 text-sm font-medium text-blue-400">
-            Desempenho atualizado
-          </span>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => navigate("/revisao/questoes")}
-          className="mt-8 rounded-2xl bg-blue-600 px-8 py-4 text-lg font-bold text-white transition hover:bg-blue-500"
-        >
-          Continuar estudando →
-        </button>
-      </div>
-    </div>
-  </div>
-)}
 
         {topPriority && (
           <>
@@ -132,15 +155,14 @@ export function ReviewPage() {
                   </p>
 
                   <h2 className="mt-2 text-2xl font-bold text-white">
-                    Sua próxima prioridade é{" "}
-                    {topPriority.subject}
+                    Sua próxima prioridade é {topPriority.subject}
                   </h2>
 
                   <p className="mt-3 text-slate-300 leading-7">
                     Seu aproveitamento atual nessa disciplina é de{" "}
-                    <strong>{topPriority.accuracy}%</strong>.
-                    A ZYNVO recomenda reforçar esse conteúdo antes de
-                    avançar para as próximas matérias.
+                    <strong>{topPriority.accuracy}%</strong>. A ZYNVO recomenda
+                    reforçar esse conteúdo antes de avançar para as próximas
+                    matérias.
                   </p>
 
                   <p className="mt-3 text-sm text-slate-400">
@@ -149,13 +171,9 @@ export function ReviewPage() {
                       ? "questão"
                       : "questões"}{" "}
                     respondidas · {topPriority.correctAnswers}{" "}
-                    {topPriority.correctAnswers === 1
-                      ? "acerto"
-                      : "acertos"}{" "}
-                    · {topPriority.wrongAnswers}{" "}
-                    {topPriority.wrongAnswers === 1
-                      ? "erro"
-                      : "erros"}
+                    {topPriority.correctAnswers === 1 ? "acerto" : "acertos"} ·{" "}
+                    {topPriority.wrongAnswers}{" "}
+                    {topPriority.wrongAnswers === 1 ? "erro" : "erros"}
                   </p>
                 </div>
               </div>
@@ -168,51 +186,44 @@ export function ReviewPage() {
 
               <p className="mt-3 text-slate-400 leading-7">
                 Seu desempenho atual está em{" "}
-                <strong className="text-white">
-                  {topPriority.accuracy}%
-                </strong>
-                . Vamos reforçar esse conteúdo com uma revisão direcionada.
+                <strong className="text-white">{topPriority.accuracy}%</strong>.
+                Vamos reforçar esse conteúdo com uma revisão direcionada.
               </p>
 
               <div className="mt-5 flex flex-wrap gap-3 text-sm">
                 <span className="rounded-full bg-slate-800 px-4 py-2 text-slate-300">
                   {topPriority.questionsAnswered}{" "}
-                  {topPriority.questionsAnswered === 1
-                    ? "questão"
-                    : "questões"}{" "}
+                  {topPriority.questionsAnswered === 1 ? "questão" : "questões"}{" "}
                   respondidas
                 </span>
 
                 <span className="rounded-full bg-green-500/10 px-4 py-2 text-green-400">
                   {topPriority.correctAnswers}{" "}
-                  {topPriority.correctAnswers === 1
-                    ? "acerto"
-                    : "acertos"}
+                  {topPriority.correctAnswers === 1 ? "acerto" : "acertos"}
                 </span>
 
                 <span className="rounded-full bg-red-500/10 px-4 py-2 text-red-400">
                   {topPriority.wrongAnswers}{" "}
-                  {topPriority.wrongAnswers === 1
-                    ? "erro"
-                    : "erros"}
+                  {topPriority.wrongAnswers === 1 ? "erro" : "erros"}
                 </span>
               </div>
 
               <div className="mt-8 flex flex-wrap gap-3">
                 <button
                   type="button"
-                  onClick={() => navigate("/revisao/questoes")}
+                  disabled={requiresTrack && isStudyTrackLoading}
+                  onClick={() => navigate(newStudyPath)}
                   className="inline-flex rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-500"
                 >
-                  Iniciar revisão
+                  {needsTrackSelection
+                    ? "Selecionar trilha"
+                    : "Iniciar nova prática"}
                 </button>
 
                 {reviewQuestions.length > 0 && (
                   <button
                     type="button"
-                    onClick={() =>
-                      navigate("/revisao/questoes?mode=errors")
-                    }
+                    onClick={() => navigate("/revisao/questoes?mode=errors")}
                     className="inline-flex rounded-xl border border-red-500/30 bg-red-500/10 px-6 py-3 font-semibold text-red-400 transition hover:bg-red-500/20"
                   >
                     Revisar meus erros →
