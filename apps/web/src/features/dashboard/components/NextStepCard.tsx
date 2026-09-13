@@ -1,5 +1,3 @@
-import { Link } from "react-router-dom";
-
 import type { NextStep } from "../types/DashboardState";
 
 type NextStepCardProps = {
@@ -9,7 +7,10 @@ type NextStepCardProps = {
 
 export function NextStepCard({ nextStep, prioritySubject }: NextStepCardProps) {
   return (
-    <section aria-labelledby="next-step-title" className="rounded-3xl border border-blue-500/20 bg-gradient-to-br from-blue-600/20 to-violet-600/10 p-6 md:p-8">
+    <section
+      aria-labelledby="next-step-title"
+      className="rounded-3xl border border-blue-500/20 bg-gradient-to-br from-blue-600/20 to-violet-600/10 p-6 md:p-8"
+    >
       <p className="text-sm font-semibold uppercase tracking-wide text-blue-400">
         Próximo passo recomendado
       </p>
@@ -21,9 +22,9 @@ export function NextStepCard({ nextStep, prioritySubject }: NextStepCardProps) {
           ? `${prioritySubject} é sua prioridade agora. ${nextStep.description}`
           : nextStep.description}
       </p>
-      <Link to={nextStep.actionPath} className="mt-6 inline-flex rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
-        {nextStep.actionLabel} →
-      </Link>
+      <p className="mt-5 text-sm font-semibold text-blue-300">
+        Use a missão principal acima para continuar.
+      </p>
     </section>
   );
 }
