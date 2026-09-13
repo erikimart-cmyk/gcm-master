@@ -17,6 +17,8 @@ import {
   saveQuestionAttempt,
 } from "@/features/study/repositories/StudyProgressRepository";
 import { hydrateQuestionResults } from "@/features/study/services/hydrateQuestionResults";
+import { getHighestStudyLevel } from "@/features/study/services/getStudyLevel";
+import type { StudyLevel } from "@/features/study/types/StudyLevel";
 import { useAuth } from "@/features/auth/context/useAuth";
 
 import {
@@ -25,6 +27,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -82,13 +85,19 @@ type StudyProgressContextValue = {
     subject: string,
     correct: boolean,
     isReview?: boolean,
-  ) => Promise<boolean>;
+    topic?: string,
+  ) => Promise<QuestionRegistrationResult>;
 
   registerReviewResult: (
     questions: number,
     correct: number,
     wrong: number,
   ) => void;
+};
+
+type QuestionRegistrationResult = {
+  saved: boolean;
+  levelUp: StudyLevel | null;
 };
 
 const StudyProgressContext = createContext<StudyProgressContextValue | null>(
@@ -99,8 +108,8 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
   const { user, isLoading: isAuthLoading } = useAuth();
   const userId = user?.id;
   const [studyGoal, setStudyGoal] = useState<StudyGoal | null>(null);
-  const [isStudyGoalLoading, setIsStudyGoalLoading] = useState(
-    () => Boolean(userId),
+  const [isStudyGoalLoading, setIsStudyGoalLoading] = useState(() =>
+    Boolean(userId),
   );
   const [isStudyGoalSaving, setIsStudyGoalSaving] = useState(false);
   const [studyGoalError, setStudyGoalError] = useState<string | null>(null);
@@ -125,6 +134,7 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
     studySessions: 0,
     questionResults: [],
   });
+  const progressRef = useRef(progress);
 
   useEffect(() => {
     if (isAuthLoading) {
@@ -220,13 +230,15 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
           (result) => result.correct,
         ).length;
 
-        setProgress((current) => ({
-          ...current,
+        const hydratedProgress = {
+          ...progressRef.current,
           questionsAnswered: questionResults.length,
           correctAnswers,
           wrongAnswers: questionResults.length - correctAnswers,
           questionResults,
-        }));
+        };
+        progressRef.current = hydratedProgress;
+        setProgress(hydratedProgress);
       })
       .catch(() => {
         if (isActive) {
@@ -320,19 +332,20 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
       subject: string,
       correct: boolean,
       isReview = false,
+      topic?: string,
     ) => {
       if (!userId) {
         setProgressError(
           "Sua sessão expirou. Entre novamente para registrar sua resposta.",
         );
-        return false;
+        return { saved: false, levelUp: null };
       }
 
       if (isProgressLoading) {
         setProgressError(
           "Seu histórico ainda está sendo carregado. Aguarde um instante para responder.",
         );
-        return false;
+        return { saved: false, levelUp: null };
       }
 
       setIsQuestionResultSaving(true);
@@ -342,25 +355,34 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
         const savedAttempt = await saveQuestionAttempt({
           questionId,
           subject,
+          topic,
           correct,
           isReview,
         });
         const result = hydrateQuestionResults([savedAttempt])[0];
-
-        setProgress((current) => ({
+        const current = progressRef.current;
+        const currentLevel = getHighestStudyLevel(current.questionResults);
+        const nextProgress = {
           ...current,
           questionsAnswered: current.questionsAnswered + 1,
           correctAnswers: current.correctAnswers + (correct ? 1 : 0),
           wrongAnswers: current.wrongAnswers + (correct ? 0 : 1),
           questionResults: [...current.questionResults, result],
-        }));
+        };
+        const nextLevel = getHighestStudyLevel(nextProgress.questionResults);
 
-        return true;
+        progressRef.current = nextProgress;
+        setProgress(nextProgress);
+
+        return {
+          saved: true,
+          levelUp: nextLevel.rank > currentLevel.rank ? nextLevel : null,
+        };
       } catch {
         setProgressError(
           "Não foi possível registrar sua resposta. Tente novamente.",
         );
-        return false;
+        return { saved: false, levelUp: null };
       } finally {
         setIsQuestionResultSaving(false);
       }
@@ -370,17 +392,21 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
 
   const registerReviewResult = useCallback(
     (questions: number, correct: number, wrong: number) => {
-      setProgress((current) => ({
-        ...current,
+      setProgress((current) => {
+        const nextProgress = {
+          ...current,
 
-        questionsAnswered: current.questionsAnswered + questions,
+          questionsAnswered: current.questionsAnswered + questions,
 
-        correctAnswers: current.correctAnswers + correct,
+          correctAnswers: current.correctAnswers + correct,
 
-        wrongAnswers: current.wrongAnswers + wrong,
+          wrongAnswers: current.wrongAnswers + wrong,
 
-        studySessions: current.studySessions + 1,
-      }));
+          studySessions: current.studySessions + 1,
+        };
+        progressRef.current = nextProgress;
+        return nextProgress;
+      });
     },
     [],
   );

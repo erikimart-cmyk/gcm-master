@@ -1,20 +1,89 @@
-import { useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import type { Question } from "@/features/questions/types/Question";
 
 import { useStudyProgress } from "@/features/landing/context/StudyProgressContext";
-import { questions } from "@/features/landing/data/questions";
 import { examBanks } from "@/features/questions/data/banks";
+import {
+  assignNextQuestions,
+  loadAssignedReviewQuestions,
+} from "@/features/questions/repositories/QuestionCatalogRepository";
+import type { StudyLevel } from "@/features/study/types/StudyLevel";
 
 export function QuestionsPage() {
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-
   const reviewMode = searchParams.get("mode") === "errors";
+  const {
+    isProgressLoading,
+    studyGoal,
+    studyTrack,
+    isStudyTrackLoading,
+    studyTrackError,
+  } = useStudyProgress();
+
+  if (isProgressLoading || isStudyTrackLoading) {
+    return (
+      <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-slate-800 bg-slate-900 p-8 text-center">
+          <p className="text-slate-300" role="status">
+            Preparando suas próximas questões...
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (
+    !reviewMode &&
+    studyGoal?.id === "concursos" &&
+    (!studyTrack || studyTrackError)
+  ) {
+    return (
+      <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-amber-500/30 bg-slate-900 p-8 text-center">
+          <h1 className="text-2xl font-bold">
+            Selecione sua trilha de concurso
+          </h1>
+          <p
+            className="mt-4 text-slate-300"
+            role={studyTrackError ? "alert" : undefined}
+          >
+            {studyTrackError ??
+              "Precisamos da sua trilha para preparar questões compatíveis com o concurso escolhido."}
+          </p>
+          <Link
+            className="mt-6 inline-flex rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white"
+            to="/onboarding"
+          >
+            Selecionar trilha →
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <QuestionSession
+      key={reviewMode ? "review" : "study"}
+      reviewMode={reviewMode}
+      examId={studyTrack?.examId}
+    />
+  );
+}
+
+function QuestionSession({
+  reviewMode,
+  examId,
+}: {
+  reviewMode: boolean;
+  examId?: string;
+}) {
+  const navigate = useNavigate();
 
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isAnswerSaving, setIsAnswerSaving] = useState(false);
+  const [levelUp, setLevelUp] = useState<StudyLevel | null>(null);
 
   const [correctAnswers, setCorrectAnswers] = useState(0);
   const [wrongAnswers, setWrongAnswers] = useState(0);
@@ -26,14 +95,76 @@ export function QuestionsPage() {
     isQuestionResultSaving,
     progressError,
   } = useStudyProgress();
+  const [initialReviewQuestions] = useState(() => reviewQuestions);
 
-  const [sessionQuestions] = useState<Question[]>(() =>
-    reviewMode ? [...reviewQuestions] : questions,
+  const [sessionQuestions, setSessionQuestions] = useState<Question[]>(() =>
+    reviewMode ? [...initialReviewQuestions] : [],
   );
+  const [isSessionLoading, setIsSessionLoading] = useState(true);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadSession = reviewMode
+      ? loadAssignedReviewQuestions().then((assignedQuestions) => {
+          const assignedQuestionIds = new Set(
+            assignedQuestions.map((question) => question.id),
+          );
+          setSessionQuestions([
+            ...initialReviewQuestions.filter(
+              (question) => !assignedQuestionIds.has(question.id),
+            ),
+            ...assignedQuestions,
+          ]);
+        })
+      : examId
+        ? assignNextQuestions(examId).then((assignedQuestions) => {
+            setSessionQuestions(assignedQuestions);
+          })
+        : Promise.reject(
+            new Error("Nenhuma trilha de concurso foi selecionada."),
+          );
+
+    void loadSession
+      .catch(() => {
+        if (reviewMode && initialReviewQuestions.length > 0) {
+          return;
+        }
+
+        setSessionError(
+          "Não foi possível preparar suas questões novas. Tente novamente.",
+        );
+      })
+      .finally(() => {
+        setIsSessionLoading(false);
+      });
+  }, [examId, initialReviewQuestions, reviewMode]);
 
   const activeQuestions = sessionQuestions;
 
   const question = activeQuestions[currentQuestion];
+  if (isSessionLoading) {
+    return (
+      <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-slate-800 bg-slate-900 p-8 text-center">
+          <p className="text-slate-300" role="status">
+            Preparando suas questões novas...
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (sessionError) {
+    return (
+      <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
+        <div className="mx-auto max-w-3xl rounded-3xl border border-red-500/30 bg-slate-900 p-8 text-center">
+          <p className="text-red-200" role="alert">
+            {sessionError}
+          </p>
+        </div>
+      </main>
+    );
+  }
   if (!question) {
     return (
       <main className="min-h-screen bg-slate-950 px-6 py-12 text-white">
@@ -44,12 +175,30 @@ export function QuestionsPage() {
             </p>
 
             <h1 className="mt-3 text-3xl font-bold">
-              Nenhum erro para revisar
+              {reviewMode
+                ? "Nenhum erro para revisar"
+                : "Você concluiu as questões novas disponíveis"}
             </h1>
 
             <p className="mt-4 text-slate-400">
-              Você não possui questões erradas disponíveis para esta revisão.
+              {reviewMode
+                ? "Você não possui questões erradas disponíveis para esta revisão."
+                : "Não vamos repetir conteúdo como se fosse novo. Volte mais tarde quando houver novas questões no catálogo ou revise seus pontos de atenção."}
             </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link
+                className="rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white"
+                to="/revisao"
+              >
+                {reviewMode ? "Voltar para revisão" : "Ir para revisão"}
+              </Link>
+              <Link
+                className="rounded-xl border border-slate-600 px-5 py-3 font-semibold text-slate-200"
+                to="/dashboard"
+              >
+                Voltar ao dashboard
+              </Link>
+            </div>
           </div>
         </div>
       </main>
@@ -70,20 +219,22 @@ export function QuestionsPage() {
     const isCorrect = answerId === question.correctAnswer;
     setIsAnswerSaving(true);
 
-    const wasSaved = await registerQuestionResult(
+    const registration = await registerQuestionResult(
       question.id,
       question.subject,
       isCorrect,
       reviewMode,
+      question.topic,
     );
 
     setIsAnswerSaving(false);
 
-    if (!wasSaved) {
+    if (!registration.saved) {
       return;
     }
 
     setSelectedAnswer(answerId);
+    setLevelUp(registration.levelUp);
 
     if (isCorrect) {
       setCorrectAnswers((current) => current + 1);
@@ -96,6 +247,7 @@ export function QuestionsPage() {
     if (currentQuestion < activeQuestions.length - 1) {
       setCurrentQuestion((current) => current + 1);
       setSelectedAnswer(null);
+      setLevelUp(null);
     }
   };
 
@@ -120,9 +272,16 @@ export function QuestionsPage() {
           </span>
         </div>
 
-        <div className="mb-8 h-2 overflow-hidden rounded-full bg-slate-800">
+        <div
+          aria-label="Progresso da sessão de questões"
+          aria-valuemax={activeQuestions.length}
+          aria-valuemin={0}
+          aria-valuenow={currentQuestion + 1}
+          className="mb-8 h-2 overflow-hidden rounded-full bg-slate-800"
+          role="progressbar"
+        >
           <div
-            className="h-full rounded-full bg-blue-500 transition-all"
+            className="h-full rounded-full bg-blue-500 transition-all motion-reduce:transition-none"
             style={{
               width: `${((currentQuestion + 1) / activeQuestions.length) * 100}%`,
             }}
@@ -193,7 +352,7 @@ export function QuestionsPage() {
           </div>
 
           {isProgressLoading && (
-            <p className="mt-4 text-sm text-slate-400">
+            <p className="mt-4 text-sm text-slate-400" role="status">
               Carregando seu histórico de estudos...
             </p>
           )}
@@ -202,6 +361,20 @@ export function QuestionsPage() {
             <p className="mt-4 text-sm text-red-300" role="alert">
               {progressError}
             </p>
+          )}
+
+          {levelUp && (
+            <div
+              className="mt-4 rounded-xl border border-violet-500/30 bg-violet-500/10 p-4"
+              role="status"
+            >
+              <p className="font-semibold text-violet-200">
+                Você avançou para {levelUp.title}! ✦
+              </p>
+              <p className="mt-1 text-sm text-slate-200">
+                {levelUp.description}
+              </p>
+            </div>
           )}
 
           {isAnswered && (
@@ -278,7 +451,7 @@ export function QuestionsPage() {
                       onClick={() => navigate("/revisao/questoes")}
                       className="inline-flex rounded-xl border border-slate-600 bg-slate-800 px-6 py-3 font-semibold text-slate-200 transition hover:border-blue-500 hover:text-white"
                     >
-                      Refazer questões
+                      Buscar novas questões
                     </button>
                   </div>
                 </div>
