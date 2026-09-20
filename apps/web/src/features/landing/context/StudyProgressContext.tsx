@@ -17,6 +17,7 @@ import {
   saveQuestionAttempt,
 } from "@/features/study/repositories/StudyProgressRepository";
 import { hydrateQuestionResults } from "@/features/study/services/hydrateQuestionResults";
+import { toCanonicalQuestionResult } from "@/features/study/services/toCanonicalQuestionResult";
 import { getHighestStudyLevel } from "@/features/study/services/getStudyLevel";
 import type { StudyLevel } from "@/features/study/types/StudyLevel";
 import { useAuth } from "@/features/auth/context/useAuth";
@@ -87,6 +88,13 @@ type StudyProgressContextValue = {
     isReview?: boolean,
     topic?: string,
   ) => Promise<QuestionRegistrationResult>;
+
+  recordCanonicalProgress: (input: {
+    questionId: number;
+    subject: string;
+    topic?: string;
+    correct: boolean;
+  }) => QuestionRegistrationResult;
 
   registerReviewResult: (
     questions: number,
@@ -390,6 +398,51 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
     [isProgressLoading, userId],
   );
 
+  const recordCanonicalProgress = useCallback(
+    (input: {
+      questionId: number;
+      subject: string;
+      topic?: string;
+      correct: boolean;
+    }) => {
+      const current = progressRef.current;
+      const alreadyHydrated = current.questionResults.some(
+        (entry) =>
+          entry.questionId === input.questionId && entry.isReview === false,
+      );
+
+      if (alreadyHydrated) {
+        return { saved: true as const, levelUp: null };
+      }
+
+      const result = toCanonicalQuestionResult({
+        questionId: input.questionId,
+        subject: input.subject,
+        topic: input.topic,
+        correct: input.correct,
+        answeredAt: new Date().toISOString(),
+      });
+      const currentLevel = getHighestStudyLevel(current.questionResults);
+      const nextProgress = {
+        ...current,
+        questionsAnswered: current.questionsAnswered + 1,
+        correctAnswers: current.correctAnswers + (input.correct ? 1 : 0),
+        wrongAnswers: current.wrongAnswers + (input.correct ? 0 : 1),
+        questionResults: [...current.questionResults, result],
+      };
+      const nextLevel = getHighestStudyLevel(nextProgress.questionResults);
+
+      progressRef.current = nextProgress;
+      setProgress(nextProgress);
+
+      return {
+        saved: true as const,
+        levelUp: nextLevel.rank > currentLevel.rank ? nextLevel : null,
+      };
+    },
+    [],
+  );
+
   const registerReviewResult = useCallback(
     (questions: number, correct: number, wrong: number) => {
       setProgress((current) => {
@@ -449,6 +502,8 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
 
       registerQuestionResult,
 
+      recordCanonicalProgress,
+
       registerReviewResult,
     }),
     [
@@ -468,6 +523,7 @@ export function StudyProgressProvider({ children }: { children: ReactNode }) {
       prioritizedSubjects,
       reviewQuestions,
       registerQuestionResult,
+      recordCanonicalProgress,
       registerReviewResult,
       updateStudyGoal,
       updateStudyTrack,
