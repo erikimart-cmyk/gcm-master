@@ -182,11 +182,41 @@ begin
     perform pg_temp.bad('K11', '1012 statement=' || coalesce(v_stmt, 'null'));
   end if;
 
+  if (
+    select qv.correct_answer from public.question_versions qv
+     where qv.question_id = 1002 and qv.version_number = 1
+  ) = 'B'
+     and (
+    select qv.correct_answer from public.question_versions qv
+     where qv.question_id = 1003 and qv.version_number = 1
+  ) = 'D'
+     and (
+    select qv.correct_answer from public.question_versions qv
+     where qv.question_id = 1012 and qv.version_number = 1
+  ) = 'C'
+  then
+    perform pg_temp.ok('K11b', '1002=B 1003=D 1012=C');
+  else
+    perform pg_temp.bad('K11b', 'pilot keys mutated');
+  end if;
+
+  select statement into v_stmt
+    from public.question_versions
+   where question_id = 1003 and version_number = 1;
+  if v_stmt =
+     'Um valor de R$ 250 sofreu aumento de 8%. Qual é o novo valor?'
+  then
+    perform pg_temp.ok('K12a', '1003 statement uses valor');
+  else
+    perform pg_temp.bad('K12a', '1003 statement=' || coalesce(v_stmt, 'null'));
+  end if;
+
   select count(*) into v_cnt
     from public.question_versions qv
     join public.questions q on q.id = qv.question_id
    where qv.version_number = 1
      and qv.question_id between 1001 and 1011
+     and qv.question_id <> 1003
      and qv.statement is distinct from q.statement;
   if v_cnt = 0 then
     perform pg_temp.ok('K12', 'no other QV statement changed');
@@ -234,11 +264,21 @@ begin
     perform pg_temp.bad('K15', 'answers changed=' || v_cnt);
   end if;
 
+  select explanation into v_stmt
+    from public.question_versions
+   where question_id = 1002 and version_number = 1;
+  if v_stmt = '15% de 80 é 12. Assim, 80 - 12 = R$ 68.' then
+    perform pg_temp.ok('K16a', '1002 explanation returns R$ 68');
+  else
+    perform pg_temp.bad('K16a', '1002 explanation=' || coalesce(v_stmt, 'null'));
+  end if;
+
   select count(*) into v_cnt
     from public.question_versions qv
     join public.questions q on q.id = qv.question_id
    where qv.version_number = 1
      and qv.question_id between 1001 and 1012
+     and qv.question_id <> 1002
      and qv.explanation is distinct from q.explanation;
   if v_cnt = 0 then
     perform pg_temp.ok('K16', 'explanation intact');
@@ -325,6 +365,16 @@ begin
          q.id = 1012
          and q.statement <>
            'Em uma pesquisa com 120 pessoas, 60% escolheram a opção A. Quantas pessoas escolheram essa opção?'
+       )
+       or (
+         q.id = 1002
+         and q.explanation <>
+           '15% de 80 é 12. Assim, 80 - 12 = 68.'
+       )
+       or (
+         q.id = 1003
+         and q.statement <>
+           'Uma taxa de R$ 250 sofreu aumento de 8%. Qual é o novo valor?'
        )
      );
   if v_cnt = 0 then
