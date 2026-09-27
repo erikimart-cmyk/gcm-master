@@ -90,7 +90,7 @@ StudyProgressContext
 Onboarding e Dashboard consomem a mesma fonte de verdade
 ```
 
-O `GoalGrid` apenas apresenta os objetivos e registra a escolha. Ele não deve navegar diretamente para o Dashboard. O botão **“Começar Minha Jornada”** deve usar `studyGoal !== null` para saber se a jornada pode começar; a decisão de navegação permanece no fluxo de onboarding.
+O `GoalGrid` apenas apresenta os objetivos e registra a escolha. Ele não deve navegar diretamente para o Dashboard. O botão **“Começar Minha Jornada”** habilita o início da jornada quando há um objetivo selecionado e não existe requisito adicional. Para **Concursos**, uma `studyTrack` também é obrigatória antes de entrar no Dashboard. A decisão de navegação permanece no fluxo de onboarding.
 
 ## 5. Rota proposta
 

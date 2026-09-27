@@ -4,6 +4,8 @@ import { useStudyProgress } from "@/features/landing/context/StudyProgressContex
 import { limeiraGcmPilotExamId } from "@/features/questions/repositories/QuestionCatalogRepository";
 import { GoalGrid } from "./GoalGrid";
 
+const startJourneyHintId = "onboarding-start-hint";
+
 export function WelcomeHero() {
   const navigate = useNavigate();
   const {
@@ -19,6 +21,16 @@ export function WelcomeHero() {
   const requiresTrack = studyGoal?.id === "concursos";
   const isReadyToStart =
     Boolean(studyGoal) && (!requiresTrack || Boolean(studyTrack));
+  const startHint =
+    !isReadyToStart &&
+    !isStudyGoalLoading &&
+    !isStudyGoalSaving &&
+    !isStudyTrackLoading &&
+    !isStudyTrackSaving
+      ? requiresTrack && !studyTrack
+        ? "Para Concursos, escolha também sua trilha/concurso acima."
+        : "Escolha um objetivo acima para começar."
+      : null;
 
   return (
     <section className="mx-auto max-w-4xl text-center">
@@ -41,40 +53,6 @@ export function WelcomeHero() {
         Você iniciou uma jornada para construir o seu futuro.
       </p>
 
-      <button
-        type="button"
-        disabled={
-          !isReadyToStart ||
-          isStudyGoalLoading ||
-          isStudyGoalSaving ||
-          isStudyTrackLoading ||
-          isStudyTrackSaving
-        }
-        onClick={() => {
-          if (studyGoal) {
-            navigate("/dashboard");
-          }
-        }}
-        className="
-        mt-12
-        rounded-xl
-        bg-violet-600
-        px-8
-        py-4
-        text-lg
-        font-semibold
-        transition-all
-        hover:bg-violet-500
-        hover:scale-105
-        active:scale-95
-        disabled:cursor-not-allowed
-        disabled:bg-violet-900
-        disabled:text-zinc-400
-        disabled:hover:scale-100
-        "
-      >
-        Começar Minha Jornada
-      </button>
       <GoalGrid />
 
       {requiresTrack && (
@@ -119,6 +97,51 @@ export function WelcomeHero() {
           </button>
         </section>
       )}
+
+      {startHint && (
+        <p
+          id={startJourneyHintId}
+          className="mt-10 text-sm text-zinc-400"
+        >
+          {startHint}
+        </p>
+      )}
+
+      <button
+        type="button"
+        aria-describedby={startHint ? startJourneyHintId : undefined}
+        disabled={
+          !isReadyToStart ||
+          isStudyGoalLoading ||
+          isStudyGoalSaving ||
+          isStudyTrackLoading ||
+          isStudyTrackSaving
+        }
+        onClick={() => {
+          if (isReadyToStart) {
+            navigate("/dashboard");
+          }
+        }}
+        className="
+        mt-12
+        rounded-xl
+        bg-violet-600
+        px-8
+        py-4
+        text-lg
+        font-semibold
+        transition-all
+        hover:bg-violet-500
+        hover:scale-105
+        active:scale-95
+        disabled:cursor-not-allowed
+        disabled:bg-violet-900
+        disabled:text-zinc-400
+        disabled:hover:scale-100
+        "
+      >
+        Começar Minha Jornada
+      </button>
 
     </section>
   );

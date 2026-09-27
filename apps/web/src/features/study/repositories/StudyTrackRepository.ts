@@ -28,7 +28,8 @@ export async function loadStudyTrack(userId: string): Promise<PersistedStudyTrac
     throw error;
   }
 
-  const exam = data?.exams?.[0];
+  const embedded = data?.exams;
+  const exam = Array.isArray(embedded) ? embedded[0] : embedded;
 
   return data && exam
     ? {
