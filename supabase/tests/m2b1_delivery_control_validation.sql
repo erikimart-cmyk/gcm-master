@@ -89,9 +89,11 @@ begin
 
   select count(*) into v_cnt from public.question_versions qv
    where qv.question_id between 1001 and 1012
-     and (qv.published_at is not null or qv.validation_status <> 'draft');
-  if v_cnt = 0 then
-    perform pg_temp.ok('PILOT_NOT_APPROVED', 'pilot v1 remains draft unpublished');
+     and qv.version_number = 1
+     and qv.validation_status = 'approved'
+     and qv.published_at is not null;
+  if v_cnt = 12 then
+    perform pg_temp.ok('PILOT_NOT_APPROVED', 'pilot v1 is approved and published');
   else
     perform pg_temp.bad('PILOT_NOT_APPROVED', 'approved/published count=' || v_cnt);
   end if;
@@ -100,9 +102,10 @@ begin
     from public.question_version_delivery_controls dc
     join public.question_versions qv on qv.id = dc.question_version_id
    where qv.question_id between 1001 and 1012
+     and qv.version_number = 1
      and dc.delivery_state = 'HOLD';
-  if v_cnt = 12 then
-    perform pg_temp.ok('PILOT_HOLD', 'all 12 v1 rows are HOLD');
+  if v_cnt = 0 then
+    perform pg_temp.ok('PILOT_HOLD', 'pilot v1 is no longer HOLD');
   else
     perform pg_temp.bad('PILOT_HOLD', 'HOLD count=' || v_cnt);
   end if;
@@ -111,38 +114,85 @@ begin
     from public.question_version_delivery_controls dc
     join public.question_versions qv on qv.id = dc.question_version_id
    where qv.question_id between 1001 and 1012
-     and dc.reason = 'Pilot QuestionVersion v1 is a structural import awaiting editorial approval. Not available for delivery.';
+     and qv.version_number = 1
+     and dc.delivery_state = 'AVAILABLE'
+     and dc.reason is null
+     and dc.provenance = 'm2b_pilot_canonical_promotion';
   if v_cnt = 12 then
-    perform pg_temp.ok('PILOT_HOLD_REASON', 'all 12 HOLD rows keep bootstrap reason');
+    perform pg_temp.ok('PILOT_HOLD_REASON', 'pilot AVAILABLE provenance replaced the bootstrap HOLD reason');
   else
-    perform pg_temp.bad('PILOT_HOLD_REASON', 'reason match count=' || v_cnt);
+    perform pg_temp.bad('PILOT_HOLD_REASON', 'promoted control count=' || v_cnt);
   end if;
 
   select count(*) into v_cnt
     from public.question_version_delivery_controls dc
     join public.question_versions qv on qv.id = dc.question_version_id
    where qv.question_id between 1001 and 1012
+     and qv.version_number = 1
      and dc.delivery_state = 'AVAILABLE';
-  if v_cnt = 0 then
-    perform pg_temp.ok('PILOT_NOT_AVAILABLE', 'no pilot AVAILABLE');
+  if v_cnt = 12 then
+    perform pg_temp.ok('PILOT_NOT_AVAILABLE', '12 pilot v1 AVAILABLE');
   else
     perform pg_temp.bad('PILOT_NOT_AVAILABLE', 'AVAILABLE count=' || v_cnt);
   end if;
 
-  select count(*) into v_cnt from public.question_version_knowledge_units qvku
-    join public.question_versions qv on qv.id = qvku.question_version_id
-   where qv.question_id between 1001 and 1012;
-  if v_cnt = 0 then
-    perform pg_temp.ok('PILOT_NO_KU', 'no automatic KU mapping');
+  -- M2B.1 created neither KnowledgeUnits nor mappings. That invariant is
+  -- superseded by 20260920010000, which inserts the approved taxonomy:
+  -- exactly 6 published KUs and 12 PRIMARY mappings, with no SUPPORTING row.
+  select count(*) into v_cnt
+    from public.knowledge_units
+   where status = 'published'
+     and id in (
+       'percentage-of-quantity',
+       'percentage-increase-decrease',
+       'reverse-percentage',
+       'percentage-change',
+       'successive-percentage-changes',
+       'weighted-average'
+     );
+  select count(*) into v_cnt2 from public.knowledge_units;
+  if v_cnt = 6 and v_cnt2 = 6 then
+    perform pg_temp.ok('PILOT_KU_TAXONOMY', 'exactly the 6 published pilot KnowledgeUnits');
   else
-    perform pg_temp.bad('PILOT_NO_KU', 'mapping count=' || v_cnt);
+    perform pg_temp.bad('PILOT_KU_TAXONOMY', 'published=' || v_cnt || ' total=' || v_cnt2);
   end if;
 
-  select count(*) into v_cnt from public.knowledge_units;
-  if v_cnt = 0 then
-    perform pg_temp.ok('PILOT_NO_KU_ROWS', 'bootstrap invented no KnowledgeUnit');
+  select count(*) into v_cnt
+    from (
+      values
+        (1001, 'percentage-of-quantity'),
+        (1007, 'percentage-of-quantity'),
+        (1008, 'percentage-of-quantity'),
+        (1012, 'percentage-of-quantity'),
+        (1002, 'percentage-increase-decrease'),
+        (1003, 'percentage-increase-decrease'),
+        (1004, 'reverse-percentage'),
+        (1010, 'reverse-percentage'),
+        (1011, 'reverse-percentage'),
+        (1005, 'percentage-change'),
+        (1006, 'successive-percentage-changes'),
+        (1009, 'weighted-average')
+    ) as expected(question_id, knowledge_unit_id)
+    join public.question_versions qv
+      on qv.question_id = expected.question_id
+     and qv.version_number = 1
+    join public.question_version_knowledge_units qvku
+      on qvku.question_version_id = qv.id
+     and qvku.knowledge_unit_id = expected.knowledge_unit_id
+     and qvku.role = 'primary';
+  select count(*) into v_cnt2
+    from public.question_version_knowledge_units
+   where role is distinct from 'primary';
+  if v_cnt = 12
+     and v_cnt2 = 0
+     and (select count(*) from public.question_version_knowledge_units) = 12
+  then
+    perform pg_temp.ok('PILOT_PRIMARY_MAPPINGS', '12 primary mappings and no supporting rows');
   else
-    perform pg_temp.bad('PILOT_NO_KU_ROWS', 'knowledge_units count=' || v_cnt);
+    perform pg_temp.bad(
+      'PILOT_PRIMARY_MAPPINGS',
+      'matched=' || v_cnt || ' non_primary=' || v_cnt2
+    );
   end if;
 
   -- B17/B18 final bootstrap state (function is not a residual API)

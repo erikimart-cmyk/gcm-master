@@ -170,6 +170,16 @@ begin
   insert into public.user_study_tracks (user_id, exam_id)
   values (v_user, 'gcm-vunesp-pilot');
 
+  -- The promoted pilot occupies question_id 1001–1012 on this exam.
+  -- Consume those rows for the fixture user so synthetic cases stay isolated.
+  insert into public.question_assignments (
+    user_id, question_id, delivery_context, answered_at
+  )
+  select v_user, qv.question_id, 'study', now()
+    from public.question_versions qv
+   where qv.question_id between 1001 and 1012
+     and qv.version_number = 1;
+
   perform pg_temp.become(v_user);
   select * into rec from public.request_question_delivery('study');
   if rec.outcome = 'DELIVERED' and rec.question_id = 19001 then
@@ -448,18 +458,18 @@ begin
      set answered_at = now()
    where user_id = v_user and question_id = 19018;
 
-  -- Real pilot still closed
+  -- Real pilot promoted by 20260928022000; this RPC does not change that baseline.
   select count(*) into v_cnt
     from public.question_versions qv
     join public.question_version_delivery_controls dc on dc.question_version_id = qv.id
    where qv.question_id between 1001 and 1012
      and qv.version_number = 1
-     and qv.validation_status = 'draft'
-     and qv.published_at is null
-     and dc.delivery_state = 'HOLD';
+     and qv.validation_status = 'approved'
+     and qv.published_at is not null
+     and dc.delivery_state = 'AVAILABLE';
   if v_cnt = 12 then
-    perform pg_temp.ok('B2-N21', 'real pilot remains draft HOLD');
-    perform pg_temp.ok('SG-B2-14', 'real pilot closed');
+    perform pg_temp.ok('B2-N21', 'real pilot is approved AVAILABLE');
+    perform pg_temp.ok('SG-B2-14', 'real pilot promoted');
   else
     perform pg_temp.bad('B2-N21', 'pilot count=' || v_cnt);
     perform pg_temp.bad('SG-B2-14', 'pilot count=' || v_cnt);

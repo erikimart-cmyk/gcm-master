@@ -179,6 +179,14 @@ begin
   insert into public.user_study_tracks (user_id, exam_id)
   values (v_user, 'gcm-vunesp-pilot');
 
+  insert into public.question_assignments (
+    user_id, question_id, delivery_context, answered_at
+  )
+  select v_user, qv.question_id, 'study', now()
+    from public.question_versions qv
+   where qv.question_id between 1001 and 1012
+     and qv.version_number = 1;
+
   perform pg_temp.become(v_user);
   select * into rec from public.request_question_delivery('study');
   if rec.outcome = 'DELIVERED' and rec.question_id = 18001 and rec.assignment_id is not null then
@@ -615,12 +623,12 @@ begin
     join public.question_version_delivery_controls dc on dc.question_version_id = qv.id
    where qv.question_id between 1001 and 1012
      and qv.version_number = 1
-     and qv.validation_status = 'draft'
-     and qv.published_at is null
-     and dc.delivery_state = 'HOLD';
+     and qv.validation_status = 'approved'
+     and qv.published_at is not null
+     and dc.delivery_state = 'AVAILABLE';
   if v_cnt = 12 then
-    perform pg_temp.ok('N18', 'real pilot remains closed');
-    perform pg_temp.ok('SG-B3-PILOT', '1001-1012 draft HOLD');
+    perform pg_temp.ok('N18', 'real pilot remains promoted');
+    perform pg_temp.ok('SG-B3-PILOT', '1001-1012 approved AVAILABLE');
   else
     perform pg_temp.bad('N18', 'pilot count=' || v_cnt);
     perform pg_temp.bad('SG-B3-PILOT', 'pilot count=' || v_cnt);
@@ -639,9 +647,10 @@ begin
     from public.question_version_delivery_controls dc
     join public.question_versions qv on qv.id = dc.question_version_id
    where qv.question_id between 1001 and 1012
+     and qv.version_number = 1
      and dc.delivery_state = 'AVAILABLE';
-  if v_cnt = 0 then
-    perform pg_temp.ok('N18b', '0 AVAILABLE on real pilot');
+  if v_cnt = 12 then
+    perform pg_temp.ok('N18b', '12 AVAILABLE on real pilot v1');
   else
     perform pg_temp.bad('N18b', 'available=' || v_cnt);
   end if;

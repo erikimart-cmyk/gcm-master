@@ -213,6 +213,14 @@ begin
   insert into public.user_study_tracks (user_id, exam_id)
   values (v_user, 'gcm-vunesp-pilot');
 
+  insert into public.question_assignments (
+    user_id, question_id, delivery_context, answered_at
+  )
+  select v_user, qv.question_id, 'study', now()
+    from public.question_versions qv
+   where qv.question_id between 1001 and 1012
+     and qv.version_number = 1;
+
   v_qv_happy := pg_temp.install_synth(
     20001,
     'M2C synthetic: 25% de 40?',
@@ -809,12 +817,12 @@ begin
     join public.question_version_delivery_controls dc on dc.question_version_id = qv.id
    where qv.question_id between 1001 and 1012
      and qv.version_number = 1
-     and qv.validation_status = 'draft'
-     and qv.published_at is null
-     and dc.delivery_state = 'HOLD';
+     and qv.validation_status = 'approved'
+     and qv.published_at is not null
+     and dc.delivery_state = 'AVAILABLE';
   if v_cnt = 12 then
-    perform pg_temp.ok('PILOT', 'real pilot closed');
-    perform pg_temp.ok('SG-C-PILOT', '1001-1012 HOLD draft');
+    perform pg_temp.ok('PILOT', 'real pilot promoted');
+    perform pg_temp.ok('SG-C-PILOT', '1001-1012 approved AVAILABLE');
   else
     perform pg_temp.bad('PILOT', 'count=' || v_cnt);
     perform pg_temp.bad('SG-C-PILOT', 'count=' || v_cnt);

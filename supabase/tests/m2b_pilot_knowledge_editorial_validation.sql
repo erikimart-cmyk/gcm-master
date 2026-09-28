@@ -305,22 +305,22 @@ begin
     from public.question_versions
    where question_id between 1001 and 1012
      and version_number = 1
-     and validation_status = 'draft';
+     and validation_status = 'approved';
   if v_cnt = 12 then
-    perform pg_temp.ok('K18', 'all 12 remain draft');
+    perform pg_temp.ok('K18', 'all 12 are approved');
   else
-    perform pg_temp.bad('K18', 'draft count=' || v_cnt);
+    perform pg_temp.bad('K18', 'approved count=' || v_cnt);
   end if;
 
   select count(*) into v_cnt
     from public.question_versions
    where question_id between 1001 and 1012
      and version_number = 1
-     and published_at is null;
+     and published_at is not null;
   if v_cnt = 12 then
-    perform pg_temp.ok('K19', 'all published_at NULL');
+    perform pg_temp.ok('K19', 'all 12 published_at set');
   else
-    perform pg_temp.bad('K19', 'null published_at count=' || v_cnt);
+    perform pg_temp.bad('K19', 'published_at count=' || v_cnt);
   end if;
 
   select count(*) into v_cnt
@@ -328,20 +328,26 @@ begin
     join public.question_versions qv on qv.id = dc.question_version_id
    where qv.question_id between 1001 and 1012
      and qv.version_number = 1
-     and dc.delivery_state = 'HOLD';
+     and dc.delivery_state = 'AVAILABLE';
   if v_cnt = 12 then
-    perform pg_temp.ok('K20', 'all 12 DeliveryControl HOLD');
+    perform pg_temp.ok('K20', 'all 12 DeliveryControl AVAILABLE');
   else
-    perform pg_temp.bad('K20', 'HOLD count=' || v_cnt);
+    perform pg_temp.bad('K20', 'AVAILABLE count=' || v_cnt);
   end if;
 
   select count(*) into v_cnt
-    from public.question_version_delivery_controls
-   where delivery_state = 'AVAILABLE';
+    from public.question_version_delivery_controls dc
+    join public.question_versions qv on qv.id = dc.question_version_id
+   where dc.delivery_state = 'AVAILABLE'
+     and (
+       qv.question_id < 1001
+       or qv.question_id > 1012
+       or qv.version_number <> 1
+     );
   if v_cnt = 0 then
-    perform pg_temp.ok('K21', 'zero AVAILABLE');
+    perform pg_temp.ok('K21', 'AVAILABLE is only the 12 pilot v1 rows');
   else
-    perform pg_temp.bad('K21', 'AVAILABLE count=' || v_cnt);
+    perform pg_temp.bad('K21', 'non-pilot AVAILABLE=' || v_cnt);
   end if;
 
   select count(*) into v_cnt
@@ -411,18 +417,36 @@ begin
     perform pg_temp.bad('K26', 'qv=' || v_cnt || ' map=' || v_cnt2);
   end if;
 
+  -- The one-shot bootstrap must stay dropped. The only remaining
+  -- security-definer function whose name contains m2b is the internal
+  -- integrity check from 20260920020000. It is not a client API:
+  -- SECURITY DEFINER, STABLE, empty search_path, and EXECUTE revoked
+  -- from public, anon, and authenticated.
   if to_regprocedure('public.bootstrap_m2b1_pilot_question_version_foundation()') is null
-     and not exists (
-       select 1 from pg_proc p
-       join pg_namespace n on n.oid = p.pronamespace
-       where n.nspname = 'public'
-         and p.prosecdef
-         and p.proname like '%m2b%'
+     and (
+       select count(*)
+         from pg_proc p
+         join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public'
+          and p.prosecdef
+          and p.proname like '%m2b%'
+          and p.oid is distinct from 'public.m2b2_question_version_passes_integrity(uuid, text)'::regprocedure
+     ) = 0
+     and exists (
+       select 1
+         from pg_proc p
+        where p.oid = 'public.m2b2_question_version_passes_integrity(uuid, text)'::regprocedure
+          and p.prosecdef
+          and p.provolatile = 's'
+          and p.proconfig = array['search_path=""']::text[]
+          and not has_function_privilege('public', p.oid, 'EXECUTE')
+          and not has_function_privilege('anon', p.oid, 'EXECUTE')
+          and not has_function_privilege('authenticated', p.oid, 'EXECUTE')
      )
   then
-    perform pg_temp.ok('K27', 'no residual privileged M2B API');
+    perform pg_temp.ok('K27', 'only the internal integrity check is privileged, and it is not executable by clients');
   else
-    perform pg_temp.bad('K27', 'privileged function still present');
+    perform pg_temp.bad('K27', 'unexpected privileged M2B function or weak integrity-check grants');
   end if;
 
   if not (
