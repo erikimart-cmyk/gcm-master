@@ -27,6 +27,7 @@ vi.mock("react-router-dom", async (importOriginal) => {
   };
 });
 
+import AuthPageSource from "./AuthPage.tsx?raw";
 import { AuthPage } from "./AuthPage";
 
 function renderAuth(entry: string | { pathname: string; state?: { from?: string } }) {
@@ -71,5 +72,17 @@ describe("AuthPage session redirect", () => {
     });
 
     expect(html).toContain('data-redirect="/dashboard"');
+  });
+
+  it("mantém o login e a confirmação de cadastro", () => {
+    const html = renderAuth("/auth");
+
+    expect(html).toContain("Entre na sua conta");
+    expect(html).toContain(">Entrar<");
+    expect(AuthPageSource).toContain(
+      "Conta criada. Confira seu e-mail para confirmar o acesso e depois entre na ZYNVO.",
+    );
+    expect(AuthPageSource).toContain('result === "signed-in"');
+    expect(AuthPageSource).not.toContain("profiles");
   });
 });

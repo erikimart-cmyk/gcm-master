@@ -82,6 +82,7 @@ vi.mock("react/jsx-runtime", async (importOriginal) => {
   };
 });
 
+import OnboardingPageSource from "./OnboardingPage.tsx?raw";
 import { OnboardingPage } from "./OnboardingPage";
 
 function captureSignOut(
@@ -138,6 +139,18 @@ describe("OnboardingPage logout", () => {
     expect(auth.signOut).toHaveBeenCalledOnce();
     expect(auth.signOut).toHaveBeenCalledWith();
     expect(navigate).toHaveBeenCalledWith("/auth", { replace: true });
+    expect(study.setStudyGoal).not.toHaveBeenCalled();
+    expect(study.setStudyTrack).not.toHaveBeenCalled();
+  });
+
+  it("continua o onboarding sem criar profile", () => {
+    const html = renderOnboarding();
+
+    expect(html).toContain("Começar Minha Jornada");
+    expect(html).toContain(">Sair<");
+    expect(html).toContain("Sua trilha de concurso");
+    expect(OnboardingPageSource).not.toContain("profiles");
+    expect(OnboardingPageSource).not.toContain("ensureOwnProfile");
     expect(study.setStudyGoal).not.toHaveBeenCalled();
     expect(study.setStudyTrack).not.toHaveBeenCalled();
   });

@@ -13,6 +13,7 @@ export type AuthContextValue = {
   session: Session | null;
   isLoading: boolean;
   configurationError: string | null;
+  profileError: string | null;
   signIn: (credentials: Credentials) => Promise<void>;
   signUp: (credentials: Credentials) => Promise<SignUpResult>;
   signOut: () => Promise<void>;

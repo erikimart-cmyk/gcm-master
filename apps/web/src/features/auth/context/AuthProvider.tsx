@@ -5,6 +5,7 @@ import {
   getSupabaseClient,
   supabaseConfigurationMessage,
 } from "../lib/supabase";
+import { createAuthenticatedProfileGate } from "../services/authenticatedProfileGate";
 import {
   AuthContext,
   type AuthContextValue,
@@ -18,6 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(() => Boolean(supabase));
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) {
@@ -25,8 +27,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     let isActive = true;
+    const profileGate = createAuthenticatedProfileGate();
 
-    void supabase.auth.getSession().then(({ data, error }) => {
+    const publishProfile = () => {
+      if (!isActive) {
+        return;
+      }
+
+      const snapshot = profileGate.snapshot();
+      setProfileError(snapshot.failureMessage);
+      setIsLoading(snapshot.status === "pending");
+    };
+
+    void supabase.auth.getSession().then(async ({ data, error }) => {
       if (!isActive) {
         return;
       }
@@ -36,7 +49,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setSession(data.session);
-      setIsLoading(false);
+      await profileGate.apply(data.session?.user.id ?? null);
+      publishProfile();
     });
 
     const {
@@ -44,7 +58,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSessionError(null);
       setSession(nextSession);
-      setIsLoading(false);
+
+      const nextUserId = nextSession?.user.id ?? null;
+      const snapshot = profileGate.snapshot();
+
+      if (snapshot.userId === nextUserId && snapshot.status === "ready") {
+        setProfileError(null);
+        setIsLoading(false);
+        return;
+      }
+
+      if (snapshot.userId === nextUserId && snapshot.status === "failed") {
+        setProfileError(snapshot.failureMessage);
+        setIsLoading(false);
+        return;
+      }
+
+      if (nextUserId) {
+        setIsLoading(true);
+      }
+
+      void profileGate.apply(nextUserId).then(() => {
+        publishProfile();
+      });
     });
 
     return () => {
@@ -59,6 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       isLoading,
       configurationError: supabase ? sessionError : supabaseConfigurationMessage,
+      profileError,
       async signIn({ email, password }: Credentials) {
         if (!supabase) {
           throw new Error(supabaseConfigurationMessage);
@@ -104,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [isLoading, session, sessionError],
+    [isLoading, profileError, session, sessionError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

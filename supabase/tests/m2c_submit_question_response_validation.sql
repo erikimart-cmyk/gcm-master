@@ -165,6 +165,7 @@ do $c$
 declare
   v_user uuid := '11111111-1111-1111-1111-111111111111';
   v_user2 uuid := '22222222-2222-2222-2222-222222222222';
+  v_user3 uuid := '33333333-3333-3333-3333-333333333333';
   v_qv uuid;
   v_qv_happy uuid;
   v_asg uuid;
@@ -176,6 +177,7 @@ declare
   v_cnt_ev integer;
   v_cnt_at integer;
   v_cnt_evi integer;
+  v_cnt_act integer;
   v_answered timestamptz;
   v_att_answered timestamptz;
   v_occured timestamptz;
@@ -860,6 +862,51 @@ begin
     perform pg_temp.ok('SG-C-NOLEGACYCALL', 'canonical RPC does not call legacy writers');
   else
     perform pg_temp.bad('SG-C-NOLEGACYCALL', 'calls legacy');
+  end if;
+
+  insert into auth.users (
+    instance_id, id, aud, role, email, encrypted_password,
+    email_confirmed_at, created_at, updated_at, confirmation_token,
+    recovery_token, email_change_token_new, email_change
+  ) values (
+    '00000000-0000-0000-0000-000000000000', v_user3, 'authenticated', 'authenticated',
+    'm2c-c@example.test', crypt('test', gen_salt('bf')), now(), now(), now(), '', '', '', ''
+  );
+
+  v_qv := pg_temp.install_synth(
+    20041, 'missing profile', '[{"id":"A","text":"1"},{"id":"B","text":"2"}]'::jsonb, 'A',
+    'm2c-test-ku', 'AVAILABLE', 'approved', true
+  );
+  insert into public.question_assignments (
+    user_id, question_id, delivery_context, question_version_id, presented_at
+  ) values (v_user3, 20041, 'study', v_qv, now())
+  returning id into v_asg2;
+
+  select count(*) into v_cnt_at from public.question_attempts;
+  select count(*) into v_cnt_ev from public.learning_events;
+  select count(*) into v_cnt_evi from public.learning_evidence;
+  select count(*) into v_cnt_act from public.evidence_actions;
+  select answered_at into v_answered
+    from public.question_assignments
+   where id = v_asg2;
+
+  perform pg_temp.become(v_user3);
+  select r.outcome into v_outcome
+    from public.submit_question_response(v_asg2, 'A', gen_random_uuid()) r;
+  reset role;
+
+  if v_outcome = 'UNAVAILABLE'
+     and not exists (select 1 from public.profiles where id = v_user3)
+     and (select count(*) from public.question_attempts) = v_cnt_at
+     and (select count(*) from public.learning_events) = v_cnt_ev
+     and (select count(*) from public.learning_evidence) = v_cnt_evi
+     and (select count(*) from public.evidence_actions) = v_cnt_act
+     and (select answered_at from public.question_assignments where id = v_asg2)
+         is not distinct from v_answered
+  then
+    perform pg_temp.ok('N-PROFILE', 'missing profile UNAVAILABLE and zero writes');
+  else
+    perform pg_temp.bad('N-PROFILE', coalesce(v_outcome, 'null'));
   end if;
 
   perform pg_temp.ok('SG-C-CONC', 'REAL MULTI-SESSION M2C CONCURRENCY TEST: DEFERRED TO BETA SECURITY GATE');
