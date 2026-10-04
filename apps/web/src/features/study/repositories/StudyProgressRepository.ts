@@ -38,6 +38,8 @@ export async function loadQuestionAttempts(
     .from("question_attempts")
     .select("question_id, subject, topic, correct, answered_at, attempt_number, is_review")
     .eq("user_id", userId)
+    // M2A.3: NULL learning_event_id is a legacy attempt. Evidence is not required.
+    .not("learning_event_id", "is", null)
     .order("answered_at", { ascending: true })
     .order("created_at", { ascending: true });
 
