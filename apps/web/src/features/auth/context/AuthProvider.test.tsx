@@ -6,6 +6,8 @@ const authApi = vi.hoisted(() => ({
   signInWithPassword: vi.fn(),
   signUp: vi.fn(),
   from: vi.fn(),
+  resetPasswordForEmail: vi.fn(),
+  updateUser: vi.fn(),
 }));
 
 const storage = vi.hoisted(() => ({
@@ -27,14 +29,24 @@ const signUpAction = vi.hoisted(() => ({
   onClick: undefined as undefined | (() => void | Promise<unknown>),
 }));
 
+const resetAction = vi.hoisted(() => ({
+  onClick: undefined as undefined | (() => void | Promise<unknown>),
+}));
+
+const updateAction = vi.hoisted(() => ({
+  onClick: undefined as undefined | (() => void | Promise<unknown>),
+}));
+
 vi.mock("../lib/supabase", () => ({
   getSupabaseClient: () => ({
     auth: {
       signOut: authApi.signOut,
       signInWithPassword: authApi.signInWithPassword,
       signUp: authApi.signUp,
-      getSession: vi.fn(),
-      onAuthStateChange: vi.fn(),
+      resetPasswordForEmail: authApi.resetPasswordForEmail,
+      updateUser: authApi.updateUser,
+      getSession: vi.fn(async () => ({ data: { session: null }, error: null })),
+      onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
     },
     from: authApi.from,
   }),
@@ -47,7 +59,7 @@ vi.mock("react/jsx-dev-runtime", async (importOriginal) => {
   return {
     ...actual,
     jsxDEV: (...args: Parameters<typeof actual.jsxDEV>) => {
-      captureSignOut(
+      captureAction(
         args[1] as { children?: unknown; onClick?: () => void | Promise<void> } | null,
       );
       return actual.jsxDEV(...args);
@@ -61,13 +73,13 @@ vi.mock("react/jsx-runtime", async (importOriginal) => {
   return {
     ...actual,
     jsx: (...args: Parameters<typeof actual.jsx>) => {
-      captureSignOut(
+      captureAction(
         args[1] as { children?: unknown; onClick?: () => void | Promise<void> } | null,
       );
       return actual.jsx(...args);
     },
     jsxs: (...args: Parameters<typeof actual.jsxs>) => {
-      captureSignOut(
+      captureAction(
         args[1] as { children?: unknown; onClick?: () => void | Promise<void> } | null,
       );
       return actual.jsxs(...args);
@@ -78,7 +90,7 @@ vi.mock("react/jsx-runtime", async (importOriginal) => {
 import { AuthProvider } from "./AuthProvider";
 import { useAuth } from "./useAuth";
 
-function captureSignOut(
+function captureAction(
   props: { children?: unknown; onClick?: () => void | Promise<unknown> } | null,
 ) {
   if (props?.children === "sign-out-probe") {
@@ -92,10 +104,18 @@ function captureSignOut(
   if (props?.children === "sign-up-probe") {
     signUpAction.onClick = props.onClick;
   }
+
+  if (props?.children === "reset-probe") {
+    resetAction.onClick = props.onClick;
+  }
+
+  if (props?.children === "update-probe") {
+    updateAction.onClick = props.onClick;
+  }
 }
 
 function Probe() {
-  const { signIn, signOut, signUp } = useAuth();
+  const { requestPasswordReset, signIn, signOut, signUp, updatePasswordFromRecovery } = useAuth();
 
   return (
     <>
@@ -114,16 +134,30 @@ function Probe() {
       >
         sign-up-probe
       </button>
+      <button
+        onClick={() => requestPasswordReset("student@example.com")}
+        type="button"
+      >
+        reset-probe
+      </button>
+      <button
+        onClick={() => updatePasswordFromRecovery("password-1")}
+        type="button"
+      >
+        update-probe
+      </button>
     </>
   );
 }
 
-describe("AuthProvider signOut", () => {
+describe("AuthProvider original session plus recovery", () => {
   beforeEach(() => {
     authApi.signOut.mockReset();
     authApi.signInWithPassword.mockReset();
     authApi.signUp.mockReset();
     authApi.from.mockReset();
+    authApi.resetPasswordForEmail.mockReset();
+    authApi.updateUser.mockReset();
     storage.removeItem.mockReset();
     storage.clear.mockReset();
     storage.getItem.mockReset();
@@ -132,6 +166,8 @@ describe("AuthProvider signOut", () => {
     signOutAction.onClick = undefined;
     signInAction.onClick = undefined;
     signUpAction.onClick = undefined;
+    resetAction.onClick = undefined;
+    updateAction.onClick = undefined;
     renderToStaticMarkup(
       <AuthProvider>
         <Probe />
@@ -190,5 +226,61 @@ describe("AuthProvider signOut", () => {
     });
     expect(authApi.from).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
+  });
+
+  it("requests recovery with a fixed redirect", async () => {
+    vi.stubEnv("VITE_PASSWORD_RECOVERY_ORIGIN", "http://127.0.0.1:5173");
+    authApi.resetPasswordForEmail.mockResolvedValueOnce({ error: null });
+
+    await resetAction.onClick?.();
+
+    expect(authApi.resetPasswordForEmail).toHaveBeenCalledWith("student@example.com", {
+      redirectTo: "http://127.0.0.1:5173/auth/reset-password",
+    });
+  });
+
+  it("requests recovery with the local 5174 origin", async () => {
+    vi.stubEnv("VITE_PASSWORD_RECOVERY_ORIGIN", "http://127.0.0.1:5174");
+    authApi.resetPasswordForEmail.mockResolvedValueOnce({ error: null });
+
+    await resetAction.onClick?.();
+
+    expect(authApi.resetPasswordForEmail).toHaveBeenCalledWith("student@example.com", {
+      redirectTo: "http://127.0.0.1:5174/auth/reset-password",
+    });
+  });
+
+  it("requests recovery with the production HTTPS origin", async () => {
+    vi.stubEnv("VITE_PASSWORD_RECOVERY_ORIGIN", "https://zynvo-web.erikimart.workers.dev");
+    authApi.resetPasswordForEmail.mockResolvedValueOnce({ error: null });
+
+    await resetAction.onClick?.();
+
+    expect(authApi.resetPasswordForEmail).toHaveBeenCalledWith("student@example.com", {
+      redirectTo: "https://zynvo-web.erikimart.workers.dev/auth/reset-password",
+    });
+  });
+
+  it("blocks recovery when the origin is not allowlisted", async () => {
+    vi.stubEnv("VITE_PASSWORD_RECOVERY_ORIGIN", "https://evil.example");
+    await expect(resetAction.onClick?.()).rejects.toThrow("não está disponível neste ambiente");
+    expect(authApi.resetPasswordForEmail).not.toHaveBeenCalled();
+  });
+
+  it("blocks recovery when the origin is missing", async () => {
+    vi.stubEnv("VITE_PASSWORD_RECOVERY_ORIGIN", "");
+    await expect(resetAction.onClick?.()).rejects.toThrow("não está disponível neste ambiente");
+    expect(authApi.resetPasswordForEmail).not.toHaveBeenCalled();
+  });
+
+  it("does not call updateUser without PASSWORD_RECOVERY", async () => {
+    await expect(updateAction.onClick?.()).rejects.toThrow();
+    expect(authApi.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("does not treat SIGNED_IN as password recovery authorization", async () => {
+    authApi.updateUser.mockResolvedValueOnce({ error: null });
+    await expect(updateAction.onClick?.()).rejects.toThrow();
+    expect(authApi.updateUser).not.toHaveBeenCalled();
   });
 });

@@ -8,6 +8,8 @@ import { DashboardPage } from "@/features/dashboard/pages/DashboardPage";
 import { OnboardingPage } from "@/features/onboarding";
 import { RequireAuth } from "@/features/auth/components/RequireAuth";
 import { AuthPage } from "@/features/auth/pages/AuthPage";
+import { ForgotPasswordPage } from "@/features/auth/pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "@/features/auth/pages/ResetPasswordPage";
 import { PlansPage } from "@/features/plans/pages/PlansPage";
 
 export function AppRouter() {
@@ -16,6 +18,8 @@ export function AppRouter() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/auth" element={<AuthPage />} />
+        <Route path="/auth/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
         <Route path="/planos" element={<PlansPage />} />
         <Route element={<RequireAuth />}>
           <Route path="/onboarding" element={<OnboardingPage />} />

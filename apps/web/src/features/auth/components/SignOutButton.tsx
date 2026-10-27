@@ -2,11 +2,15 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../context/useAuth";
+import {
+  accountSignOutFailedMessage,
+  runAccountSignOut,
+} from "../lib/accountSessionActions";
 
 export function SignOutButton() {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
-  const isSubmittingRef = useRef(false);
+  const signOutInFlightRef = useRef(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,33 +19,37 @@ export function SignOutButton() {
   }
 
   async function handleSignOut() {
-    if (isSubmittingRef.current) {
+    if (signOutInFlightRef.current || isSubmitting) {
       return;
     }
 
-    isSubmittingRef.current = true;
-    setError(null);
+    signOutInFlightRef.current = true;
     setIsSubmitting(true);
+    setError(null);
 
-    try {
-      await signOut();
-      navigate("/auth", { replace: true });
-    } catch {
-      isSubmittingRef.current = false;
+    const result = await runAccountSignOut({
+      signingOut: false,
+      signOut,
+      onSuccess: () => navigate("/auth", { replace: true }),
+    });
+
+    if (result === "failed") {
+      signOutInFlightRef.current = false;
       setIsSubmitting(false);
-      setError("Não foi possível encerrar a sessão. Tente novamente.");
+      setError(accountSignOutFailedMessage);
     }
   }
 
   return (
     <div className="flex flex-col items-end gap-2">
       <button
+        aria-busy={isSubmitting}
         className="rounded-full border border-zinc-800 bg-zinc-950/80 px-4 py-2 text-sm font-medium text-zinc-400 transition hover:border-zinc-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
         disabled={isSubmitting}
         onClick={handleSignOut}
         type="button"
       >
-        Sair
+        {isSubmitting ? "Saindo…" : "Sair"}
       </button>
       {error ? (
         <p className="max-w-xs text-right text-xs text-red-300" role="alert">

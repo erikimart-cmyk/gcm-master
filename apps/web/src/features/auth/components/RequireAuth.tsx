@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 
 export function RequireAuth() {
-  const { isLoading, profileError, user } = useAuth();
+  const { isLoading, passwordRecovery, profileError, user } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -12,6 +12,10 @@ export function RequireAuth() {
         Verificando sua sessão…
       </main>
     );
+  }
+
+  if (passwordRecovery) {
+    return <Navigate replace to="/auth/reset-password" />;
   }
 
   if (!user) {

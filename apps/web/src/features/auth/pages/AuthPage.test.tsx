@@ -7,6 +7,7 @@ const auth = vi.hoisted(() => ({
   user: null as { id: string } | null,
   isLoading: false,
   configurationError: null as string | null,
+  passwordRecovery: false,
   signIn: vi.fn(),
   signUp: vi.fn(),
 }));
@@ -43,6 +44,7 @@ describe("AuthPage session redirect", () => {
     auth.user = null;
     auth.isLoading = false;
     auth.configurationError = null;
+    auth.passwordRecovery = false;
   });
 
   it("mantém /auth acessível sem sessão", () => {
@@ -84,5 +86,15 @@ describe("AuthPage session redirect", () => {
     );
     expect(AuthPageSource).toContain('result === "signed-in"');
     expect(AuthPageSource).not.toContain("profiles");
+    expect(html).toContain("Esqueci minha senha");
+    expect(html).toContain("/auth/forgot-password");
+  });
+
+  it("sends an authorized recovery session to the reset page instead of studies", () => {
+    auth.user = { id: "authenticated-user" };
+    auth.passwordRecovery = true;
+    const html = renderAuth("/auth");
+    expect(html).toContain('data-redirect="/auth/reset-password"');
+    expect(html).not.toContain('data-redirect="/onboarding"');
   });
 });

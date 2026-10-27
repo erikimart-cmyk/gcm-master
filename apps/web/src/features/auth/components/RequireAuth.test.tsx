@@ -7,6 +7,7 @@ const auth = vi.hoisted(() => ({
   user: null as { id: string } | null,
   isLoading: false,
   profileError: null as string | null,
+  passwordRecovery: false,
 }));
 
 vi.mock("../context/useAuth", () => ({
@@ -34,11 +35,12 @@ function renderGuard() {
   );
 }
 
-describe("RequireAuth profile gate", () => {
+describe("RequireAuth profile gate and recovery", () => {
   beforeEach(() => {
     auth.user = null;
     auth.isLoading = false;
     auth.profileError = null;
+    auth.passwordRecovery = false;
   });
 
   it("segura a área autenticada enquanto a sessão ou o profile ainda não assentaram", () => {
@@ -52,6 +54,17 @@ describe("RequireAuth profile gate", () => {
     expect(html).not.toContain("data-redirect");
   });
 
+  it("keeps pending profile from flashing pedagogical content", () => {
+    auth.user = { id: "authenticated-user" };
+    auth.isLoading = true;
+    auth.profileError = null;
+
+    const html = renderGuard();
+
+    expect(html).toContain("Verificando sua sessão…");
+    expect(html).not.toContain("data-outlet");
+  });
+
   it("redireciona quem não está autenticado", () => {
     const html = renderGuard();
 
@@ -61,7 +74,8 @@ describe("RequireAuth profile gate", () => {
 
   it("mostra a falha do profile sem abrir a área autenticada", () => {
     auth.user = { id: "authenticated-user" };
-    auth.profileError = "Não foi possível preparar seu perfil. Recarregue a página para tentar de novo.";
+    auth.profileError =
+      "Não foi possível preparar seu perfil. Recarregue a página para tentar de novo.";
 
     const html = renderGuard();
 
@@ -78,5 +92,26 @@ describe("RequireAuth profile gate", () => {
 
     expect(html).toContain('data-outlet="authenticated"');
     expect(html).not.toContain('role="alert"');
+  });
+
+  it("keeps recovery sessions out of pedagogical routes", () => {
+    auth.user = { id: "authenticated-user" };
+    auth.passwordRecovery = true;
+
+    const html = renderGuard();
+
+    expect(html).toContain('data-redirect="/auth/reset-password"');
+    expect(html).not.toContain("data-outlet");
+  });
+
+  it("does not open study routes while recovery is authorized even if profile is ready", () => {
+    auth.user = { id: "authenticated-user" };
+    auth.passwordRecovery = true;
+    auth.profileError = null;
+
+    const html = renderGuard();
+
+    expect(html).toContain('data-redirect="/auth/reset-password"');
+    expect(html).not.toContain("data-outlet");
   });
 });

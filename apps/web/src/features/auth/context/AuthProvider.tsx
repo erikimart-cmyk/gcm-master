@@ -1,6 +1,21 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 
+import {
+  classifyPasswordUpdateError,
+  isValidEmail,
+} from "../lib/passwordRecoveryActions";
+import {
+  createPasswordRecoveryGate,
+  shouldSuppressAuthenticatedBootstrap,
+  type PasswordRecoveryStatus,
+} from "../lib/passwordRecoveryGate";
+import {
+  isPasswordRecoveryPath,
+  readConfiguredRecoveryOrigin,
+  recoveryOriginUnsafeMessage,
+  resolvePasswordRecoveryRedirect,
+} from "../lib/passwordRecoveryRedirect";
 import {
   getSupabaseClient,
   supabaseConfigurationMessage,
@@ -10,16 +25,26 @@ import {
   AuthContext,
   type AuthContextValue,
   type Credentials,
+  type PasswordRecoveryFinishResult,
   type SignUpResult,
 } from "./auth-context";
 
 const supabase = getSupabaseClient();
+
+function currentPathname() {
+  return globalThis.location?.pathname ?? "";
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(() => Boolean(supabase));
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const initialPathname = currentPathname();
+  const recoveryRef = useRef(createPasswordRecoveryGate(initialPathname));
+  const [passwordRecoveryStatus, setPasswordRecoveryStatus] = useState<PasswordRecoveryStatus>(() =>
+    isPasswordRecoveryPath(initialPathname) ? "path-isolated" : "idle",
+  );
 
   useEffect(() => {
     if (!supabase) {
@@ -28,6 +53,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let isActive = true;
     const profileGate = createAuthenticatedProfileGate();
+
+    const publishRecovery = () => {
+      if (!isActive) {
+        return;
+      }
+
+      setPasswordRecoveryStatus(recoveryRef.current.snapshot());
+    };
 
     const publishProfile = () => {
       if (!isActive) {
@@ -39,48 +72,71 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(snapshot.status === "pending");
     };
 
-    void supabase.auth.getSession().then(async ({ data, error }) => {
-      if (!isActive) {
-        return;
+    const skipProfileForRecovery = (pathname: string) =>
+      shouldSuppressAuthenticatedBootstrap(recoveryRef.current.snapshot(), pathname);
+
+    const applyProfileIfAllowed = (nextUserId: string | null, pathname: string) => {
+      if (skipProfileForRecovery(pathname)) {
+        setProfileError(null);
+        setIsLoading(false);
+        return Promise.resolve();
       }
 
-      if (error) {
-        setSessionError("Não foi possível verificar sua sessão. Tente novamente.");
-      }
-
-      setSession(data.session);
-      await profileGate.apply(data.session?.user.id ?? null);
-      publishProfile();
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSessionError(null);
-      setSession(nextSession);
-
-      const nextUserId = nextSession?.user.id ?? null;
       const snapshot = profileGate.snapshot();
 
       if (snapshot.userId === nextUserId && snapshot.status === "ready") {
         setProfileError(null);
         setIsLoading(false);
-        return;
+        return Promise.resolve();
       }
 
       if (snapshot.userId === nextUserId && snapshot.status === "failed") {
         setProfileError(snapshot.failureMessage);
         setIsLoading(false);
-        return;
+        return Promise.resolve();
       }
 
       if (nextUserId) {
         setIsLoading(true);
       }
 
-      void profileGate.apply(nextUserId).then(() => {
+      return profileGate.apply(nextUserId).then(() => {
         publishProfile();
       });
+    };
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!isActive) {
+        return;
+      }
+
+      const pathname = currentPathname();
+      setSessionError(null);
+      setSession(nextSession);
+      recoveryRef.current.handleEvent(event, pathname);
+      publishRecovery();
+      void applyProfileIfAllowed(nextSession?.user.id ?? null, pathname);
+    });
+
+    void supabase.auth.getSession().then(async ({ data, error }) => {
+      if (!isActive) {
+        return;
+      }
+
+      const pathname = currentPathname();
+
+      if (error) {
+        setSessionError("Não foi possível verificar sua sessão. Tente novamente.");
+      }
+
+      setSession(data.session);
+      recoveryRef.current.handleEvent("INITIAL_SESSION", pathname);
+      await Promise.resolve();
+      recoveryRef.current.finalizeInitialSession(pathname, Boolean(data.session));
+      publishRecovery();
+      await applyProfileIfAllowed(data.session?.user.id ?? null, pathname);
     });
 
     return () => {
@@ -89,6 +145,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const suppressAuthenticatedBootstrap = shouldSuppressAuthenticatedBootstrap(
+    passwordRecoveryStatus,
+    currentPathname(),
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user: session?.user ?? null,
@@ -96,6 +157,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isLoading,
       configurationError: supabase ? sessionError : supabaseConfigurationMessage,
       profileError,
+      passwordRecovery: passwordRecoveryStatus === "authorized",
+      passwordRecoveryStatus,
+      suppressAuthenticatedBootstrap,
       async signIn({ email, password }: Credentials) {
         if (!supabase) {
           throw new Error(supabaseConfigurationMessage);
@@ -140,8 +204,73 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw error;
         }
       },
+      async requestPasswordReset(email: string) {
+        if (!supabase) {
+          throw new Error(supabaseConfigurationMessage);
+        }
+
+        if (!isValidEmail(email)) {
+          throw new Error("Informe um e-mail válido.");
+        }
+
+        const redirectTo = resolvePasswordRecoveryRedirect(readConfiguredRecoveryOrigin());
+
+        if (!redirectTo) {
+          throw new Error(recoveryOriginUnsafeMessage);
+        }
+
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo,
+        });
+
+        if (error) {
+          throw error;
+        }
+      },
+      async updatePasswordFromRecovery(password: string) {
+        if (!supabase) {
+          throw new Error(supabaseConfigurationMessage);
+        }
+
+        if (!recoveryRef.current.canUpdatePassword()) {
+          throw new Error(classifyPasswordUpdateError(new Error("session")));
+        }
+
+        const { error } = await supabase.auth.updateUser({ password });
+
+        if (error) {
+          recoveryRef.current.block();
+          setPasswordRecoveryStatus(recoveryRef.current.snapshot());
+          throw new Error(classifyPasswordUpdateError(error));
+        }
+      },
+      async finishPasswordRecovery(): Promise<PasswordRecoveryFinishResult> {
+        recoveryRef.current.consume();
+        setPasswordRecoveryStatus(recoveryRef.current.snapshot());
+
+        if (!supabase) {
+          return "sign-out-failed";
+        }
+
+        const { error } = await supabase.auth.signOut();
+
+        if (error) {
+          return "sign-out-failed";
+        }
+
+        recoveryRef.current.invalidate();
+        setPasswordRecoveryStatus(recoveryRef.current.snapshot());
+        return "signed-out";
+      },
     }),
-    [isLoading, profileError, session, sessionError],
+    [
+      isLoading,
+      passwordRecoveryStatus,
+      profileError,
+      session,
+      sessionError,
+      suppressAuthenticatedBootstrap,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

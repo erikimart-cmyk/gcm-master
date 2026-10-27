@@ -63,7 +63,7 @@ vi.mock("react/jsx-dev-runtime", async (importOriginal) => {
 });
 
 vi.mock("react/jsx-runtime", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("react/jsx-runtime")>();
+    const actual = await importOriginal<typeof import("react/jsx-runtime")>();
 
   return {
     ...actual,
@@ -119,6 +119,8 @@ describe("OnboardingPage logout", () => {
     expect(html).toContain('type="button"');
     expect(html).toContain("Começar Minha Jornada");
     expect(html).toContain("Sua trilha de concurso");
+    expect(html).not.toContain("Minha conta");
+    expect(html).not.toContain("Sair da conta");
     expect(study.setStudyGoal).not.toHaveBeenCalled();
     expect(study.setStudyTrack).not.toHaveBeenCalled();
   });
@@ -151,6 +153,7 @@ describe("OnboardingPage logout", () => {
     expect(html).toContain("Sua trilha de concurso");
     expect(OnboardingPageSource).not.toContain("profiles");
     expect(OnboardingPageSource).not.toContain("ensureOwnProfile");
+    expect(OnboardingPageSource).not.toContain("AccountSessionControl");
     expect(study.setStudyGoal).not.toHaveBeenCalled();
     expect(study.setStudyTrack).not.toHaveBeenCalled();
   });

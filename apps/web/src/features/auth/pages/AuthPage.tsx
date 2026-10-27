@@ -27,7 +27,7 @@ function getAuthErrorMessage(error: unknown) {
 export function AuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { configurationError, isLoading, signIn, signUp, user } = useAuth();
+  const { configurationError, isLoading, passwordRecovery, signIn, signUp, user } = useAuth();
   const locationState = location.state as AuthLocationState | null;
   const [mode, setMode] = useState<"sign-in" | "sign-up">(
     locationState?.mode ?? "sign-in",
@@ -39,6 +39,10 @@ export function AuthPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const redirectTo = locationState?.from ?? "/onboarding";
+
+  if (user && passwordRecovery) {
+    return <Navigate replace to="/auth/reset-password" />;
+  }
 
   if (user) {
     return <Navigate replace to={redirectTo} />;
@@ -143,6 +147,17 @@ export function AuthPage() {
               value={password}
             />
           </label>
+
+          {!isSignUp ? (
+            <p className="text-right">
+              <Link
+                className="text-sm text-violet-300 transition hover:text-violet-200"
+                to="/auth/forgot-password"
+              >
+                Esqueci minha senha
+              </Link>
+            </p>
+          ) : null}
 
           <button
             className="w-full rounded-xl bg-violet-600 px-4 py-3 font-semibold transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:bg-violet-900 disabled:text-zinc-400"
