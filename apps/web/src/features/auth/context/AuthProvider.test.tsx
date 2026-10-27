@@ -240,6 +240,17 @@ describe("AuthProvider original session plus recovery", () => {
     });
   });
 
+  it("requests recovery with the production HTTPS origin", async () => {
+    vi.stubEnv("VITE_PASSWORD_RECOVERY_ORIGIN", "https://zynvo-web.erikimart.workers.dev");
+    authApi.resetPasswordForEmail.mockResolvedValueOnce({ error: null });
+
+    await resetAction.onClick?.();
+
+    expect(authApi.resetPasswordForEmail).toHaveBeenCalledWith("student@example.com", {
+      redirectTo: "https://zynvo-web.erikimart.workers.dev/auth/reset-password",
+    });
+  });
+
   it("blocks recovery when the origin is not allowlisted", async () => {
     vi.stubEnv("VITE_PASSWORD_RECOVERY_ORIGIN", "https://evil.example");
     await expect(resetAction.onClick?.()).rejects.toThrow("não está disponível neste ambiente");
