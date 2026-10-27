@@ -229,8 +229,25 @@ describe("AuthProvider original session plus recovery", () => {
     });
   });
 
+  it("requests recovery with the local 5174 origin", async () => {
+    vi.stubEnv("VITE_PASSWORD_RECOVERY_ORIGIN", "http://127.0.0.1:5174");
+    authApi.resetPasswordForEmail.mockResolvedValueOnce({ error: null });
+
+    await resetAction.onClick?.();
+
+    expect(authApi.resetPasswordForEmail).toHaveBeenCalledWith("student@example.com", {
+      redirectTo: "http://127.0.0.1:5174/auth/reset-password",
+    });
+  });
+
   it("blocks recovery when the origin is not allowlisted", async () => {
     vi.stubEnv("VITE_PASSWORD_RECOVERY_ORIGIN", "https://evil.example");
+    await expect(resetAction.onClick?.()).rejects.toThrow("não está disponível neste ambiente");
+    expect(authApi.resetPasswordForEmail).not.toHaveBeenCalled();
+  });
+
+  it("blocks recovery when the origin is missing", async () => {
+    vi.stubEnv("VITE_PASSWORD_RECOVERY_ORIGIN", "");
     await expect(resetAction.onClick?.()).rejects.toThrow("não está disponível neste ambiente");
     expect(authApi.resetPasswordForEmail).not.toHaveBeenCalled();
   });
